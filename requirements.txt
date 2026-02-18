@@ -1,0 +1,8 @@
+PySide6
+reportlab
+bcrypt
+matplotlib
+pandas
+openpyxl
+jinja2
+python-dateutil
