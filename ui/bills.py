@@ -620,7 +620,9 @@ class CreateBillDialog(QDialog):
         main_layout.addLayout(btn_layout)
         self.setLayout(main_layout)
         
-        self.available_items = execute_read_query("SELECT id, name, purchase_price, gst_rate FROM items")
+        self.available_items = execute_read_query(
+            "SELECT id, name, sku, purchase_price, gst_rate, is_purchasable FROM items"
+        )
         self.calculated_subtotal = 0.0
 
         if self.bill_data:
@@ -706,12 +708,27 @@ class CreateBillDialog(QDialog):
         
         # Item Combo
         combo = QComboBox()
-        # Enable search in combo
         combo.setEditable(True)
         combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
         
         for item in self.available_items:
-            combo.addItem(item['name'], item) 
+            name = item['name']
+            sku_text = ""
+            if 'sku' in item.keys() and item['sku']:
+                sku_text = f" ({item['sku']})"
+            is_purchasable = 1
+            if 'is_purchasable' in item.keys():
+                try:
+                    is_purchasable = int(item['is_purchasable'])
+                except (ValueError, TypeError):
+                    is_purchasable = 1
+            display_text = f"{name}{sku_text}"
+            if not is_purchasable:
+                display_text = f"{display_text} [NOT PURCHASABLE]"
+            combo.addItem(display_text, item)
+            if not is_purchasable:
+                idx_added = combo.count() - 1
+                combo.setItemData(idx_added, Qt.red, Qt.ForegroundRole)
         
         # Default values
         if item_data:
@@ -829,10 +846,25 @@ class CreateBillDialog(QDialog):
         for row in range(self.items_table.rowCount()):
             combo = self.items_table.cellWidget(row, 0)
             idx = combo.currentIndex()
-            if idx < 0: continue
+            if idx < 0:
+                continue
             
             item_data = combo.itemData(idx)
-            if not item_data: continue
+            if not item_data:
+                continue
+            is_purchasable = 1
+            if 'is_purchasable' in item_data.keys():
+                try:
+                    is_purchasable = int(item_data['is_purchasable'])
+                except (ValueError, TypeError):
+                    is_purchasable = 1
+            if not is_purchasable:
+                QMessageBox.warning(
+                    self,
+                    "Error",
+                    f"Item '{item_data['name']}' is marked as not inactive(purchasable) in Items."
+                )
+                return
                 
             try:
                 qty = float(self.items_table.cellWidget(row, 1).text())

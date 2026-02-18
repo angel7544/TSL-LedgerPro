@@ -22,7 +22,7 @@ class LoginWindow(QWidget):
             QLineEdit { padding: 10px 12px; border: 1px solid #CBD5E1; border-radius: 8px; color: #0F172A; background-color: #F9FAFB; font-size: 11px; }
             QLineEdit:focus { border: 1px solid #2563EB; background-color: #FFFFFF; }
             QPushButton { padding: 10px; border-radius: 8px; font-weight: 600; font-size: 11px; }
-            QPushButton#LoginBtn { background-color: #2563EB; color: white; }
+            QPushButton#LoginBtn { background-color: #2563EB; color: red; }
             QPushButton#LoginBtn:hover { background-color: #1D4ED8; }
             QPushButton#SignupLink { background-color: transparent; color: #2563EB; border: none; }
             QPushButton#SignupLink:hover { text-decoration: underline; }

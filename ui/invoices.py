@@ -419,8 +419,10 @@ class CreateInvoiceDialog(QDialog):
         self.items_data = [] 
         self.calculated_subtotal = 0.0 # Store for final calc
         
-        # Load available items
-        self.available_items = execute_read_query("SELECT id, name, selling_price, gst_rate FROM items")
+        # Load available items (including flags to control sellability)
+        self.available_items = execute_read_query(
+            "SELECT id, name, sku, selling_price, gst_rate, is_sellable FROM items"
+        )
 
         # Populate if editing
         if self.invoice_data:
@@ -508,8 +510,26 @@ class CreateInvoiceDialog(QDialog):
         
         # Item Combo
         combo = QComboBox()
+        combo.setEditable(True)
+        combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
         for item in self.available_items:
-            combo.addItem(item['name'], item) 
+            name = item['name']
+            sku_text = ""
+            if 'sku' in item.keys() and item['sku']:
+                sku_text = f" ({item['sku']})"
+            is_sellable = 1
+            if 'is_sellable' in item.keys():
+                try:
+                    is_sellable = int(item['is_sellable'])
+                except (ValueError, TypeError):
+                    is_sellable = 1
+            display_text = f"{name}{sku_text}"
+            if not is_sellable:
+                display_text = f"{display_text} [NOT SELLABLE]"
+            combo.addItem(display_text, item)
+            if not is_sellable:
+                idx_added = combo.count() - 1
+                combo.setItemData(idx_added, Qt.red, Qt.ForegroundRole)
         
         # Default values
         if item_data:
@@ -614,9 +634,25 @@ class CreateInvoiceDialog(QDialog):
         items = []
         for row in range(self.items_table.rowCount()):
             combo = self.items_table.cellWidget(row, 0)
-            item_data = combo.currentData()
+            idx = combo.currentIndex()
+            if idx < 0:
+                continue
+            item_data = combo.itemData(idx)
             if not item_data:
                 continue
+            is_sellable = 1
+            if 'is_sellable' in item_data.keys():
+                try:
+                    is_sellable = int(item_data['is_sellable'])
+                except (ValueError, TypeError):
+                    is_sellable = 1
+            if not is_sellable:
+                QMessageBox.warning(
+                    self,
+                    "Error",
+                    f"Item '{item_data['name']}' is marked as not inactive(sellable) in Items."
+                )
+                return
                 
             try:
                 qty = float(self.items_table.cellWidget(row, 1).text())

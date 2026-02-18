@@ -37,7 +37,6 @@ class StockPage(QWidget):
         header.addWidget(export_btn)
         layout.addLayout(header)
         
-        # Table
         self.table = QTableWidget()
         self.table.setColumnCount(4)
         self.table.setHorizontalHeaderLabels(["Item Name", "Qty Available", "FIFO Value", "Avg Cost"])
@@ -45,6 +44,14 @@ class StockPage(QWidget):
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         
         layout.addWidget(self.table)
+        
+        totals_layout = QHBoxLayout()
+        self.total_qty_label = QLabel("Total Stock Qty: 0.00")
+        self.total_val_label = QLabel("Total Stock Value: ₹0.00")
+        totals_layout.addWidget(self.total_qty_label)
+        totals_layout.addStretch()
+        totals_layout.addWidget(self.total_val_label)
+        layout.addLayout(totals_layout)
         
         self.setLayout(layout)
         self.refresh_data()
@@ -56,7 +63,7 @@ class StockPage(QWidget):
     def filter_data(self):
         search_text = self.search_bar.text().lower()
         filtered_data = [
-            item for item in self.stock_data 
+            item for item in self.stock_data
             if search_text in item['item_name'].lower()
         ]
         
@@ -67,6 +74,14 @@ class StockPage(QWidget):
             self.table.setItem(r, 1, QTableWidgetItem(str(item['total_quantity'])))
             self.table.setItem(r, 2, QTableWidgetItem(f"₹{item['total_value']:.2f}"))
             self.table.setItem(r, 3, QTableWidgetItem(f"₹{item['avg_cost']:.2f}"))
+        
+        total_qty = 0.0
+        total_value = 0.0
+        for item in filtered_data:
+            total_qty += float(item['total_quantity'])
+            total_value += float(item['total_value'])
+        self.total_qty_label.setText(f"Total Stock Qty: {total_qty:.2f}")
+        self.total_val_label.setText(f"Total Stock Value: ₹{total_value:.2f}")
 
     def import_stock_csv(self):
         filename, _ = QFileDialog.getOpenFileName(self, "Import Stock CSV", "", "CSV Files (*.csv)")

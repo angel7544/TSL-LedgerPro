@@ -22,7 +22,9 @@ def calculate_gst(taxable_amount, gst_rate, seller_state, buyer_state, tax_inclu
     grand_total = 0.0
     base_amount = 0.0
 
-    is_intra_state = (seller_state.strip().lower() == buyer_state.strip().lower())
+    seller = (seller_state or "").strip().lower()
+    buyer = (buyer_state or "").strip().lower()
+    is_intra_state = (seller and buyer and seller == buyer)
 
     if is_intra_state:
         cgst_rate = gst_rate / 2

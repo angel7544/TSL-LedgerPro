@@ -5,20 +5,21 @@ import datetime
 
 def generate_invoice_number():
     """Generates a new invoice number."""
-    # Get prefix from settings
     settings = execute_read_query("SELECT value FROM settings WHERE key='invoice_prefix'")
     prefix = settings[0]['value'] if settings else "INV-"
     
-    # Find last invoice number
-    last_inv = execute_read_query("SELECT invoice_number FROM invoices ORDER BY id DESC LIMIT 1")
-    if last_inv:
-        last_num_str = last_inv[0]['invoice_number'].replace(prefix, "")
-        try:
-            next_num = int(last_num_str) + 1
-        except ValueError:
-            next_num = 1
-    else:
-        next_num = 1
+    rows = execute_read_query("SELECT invoice_number FROM invoices WHERE invoice_number LIKE ?", (f"{prefix}%",))
+    max_num = 0
+    for row in rows:
+        inv = row['invoice_number'] or ""
+        if not inv.startswith(prefix):
+            continue
+        suffix = inv[len(prefix):]
+        if suffix.isdigit():
+            num = int(suffix)
+            if num > max_num:
+                max_num = num
+    next_num = max_num + 1
         
     return f"{prefix}{next_num:04d}"
 

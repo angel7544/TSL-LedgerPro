@@ -4,8 +4,32 @@ from reportlab.lib import colors
 from reportlab.platypus import Table, TableStyle, SimpleDocTemplate, Paragraph, Spacer, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch, mm
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 import os
 import json
+
+UNICODE_FONT_NAME = None
+
+
+def get_unicode_font():
+    global UNICODE_FONT_NAME
+    if UNICODE_FONT_NAME:
+        return UNICODE_FONT_NAME
+    font_candidates = [
+        ("ArialUnicode", r"C:\Windows\Fonts\arial.ttf"),
+        ("DejaVuSans", r"C:\Windows\Fonts\DejaVuSans.ttf"),
+    ]
+    for name, path in font_candidates:
+        try:
+            if os.path.exists(path):
+                pdfmetrics.registerFont(TTFont(name, path))
+                UNICODE_FONT_NAME = name
+                return UNICODE_FONT_NAME
+        except Exception as e:
+            print(f"Error registering font {name}: {e}")
+    UNICODE_FONT_NAME = "Helvetica"
+    return UNICODE_FONT_NAME
 
 def draw_header(c, data, title="INVOICE"):
     """Draws the header with logo and company details."""
@@ -531,55 +555,92 @@ def generate_generic_report_pdf(report_data, headers, rows, filename="report.pdf
     """
     doc = SimpleDocTemplate(filename, pagesize=A4, topMargin=200, bottomMargin=50)
     width, height = A4
+
+    # Optional: compute stock totals for Stock Valuation report
+    stock_total_qty = None
+    stock_total_value = None
+    if title.upper() == "STOCK VALUATION" and len(headers) >= 5:
+        try:
+            qty_idx = 2
+            val_idx = 4
+            total_qty = 0.0
+            total_val = 0.0
+            for r in rows:
+                if len(r) <= val_idx:
+                    continue
+                qty_str = (r[qty_idx] or "").replace("₹", "").replace(",", "").strip()
+                val_str = (r[val_idx] or "").replace("₹", "").replace(",", "").strip()
+                if qty_str:
+                    total_qty += float(qty_str)
+                if val_str:
+                    total_val += float(val_str)
+            stock_total_qty = total_qty
+            stock_total_value = total_val
+        except Exception:
+            stock_total_qty = None
+            stock_total_value = None
+
+    # Avoid mutating caller's dict
+    report_meta = dict(report_data)
+    if stock_total_qty is not None and stock_total_value is not None:
+        report_meta["stock_total_qty"] = stock_total_qty
+        report_meta["stock_total_value"] = stock_total_value
     
     def draw_page_header(canvas, doc):
         canvas.saveState()
-        # Draw Company Header
-        y = draw_header(canvas, report_data, title)
-        
-        # Draw Report Info (Date, Period)
-        canvas.setFont("Helvetica", 10)
-        
-        # We draw this info slightly below the header divider
-        # draw_header returns y position approx 20pts below the line
-        # We can use that, or a fixed offset if we want consistency with topMargin
-        
-        # Let's use the returned y, but ensure it doesn't overlap with body
-        # If y is too low, our topMargin might be insufficient.
-        # But usually header is ~100-120pts. topMargin is 160.
-        
+        y = draw_header(canvas, report_meta, title)
+        font_name = get_unicode_font()
+        canvas.setFont(font_name, 10)
         info_y = y
-        canvas.drawString(30, info_y, f"Generated on: {report_data.get('generated_date', '')}")
-        if report_data.get('date_range'):
-            canvas.drawRightString(width - 30, info_y, f"Period: {report_data.get('date_range', '')}")
-            
-        # Page Number
-        canvas.setFont("Helvetica", 8)
+        canvas.drawString(30, info_y, f"Generated on: {report_meta.get('generated_date', '')}")
+        if report_meta.get('date_range'):
+            canvas.drawRightString(width - 30, info_y, f"Period: {report_meta.get('date_range', '')}")
+        info_y -= 14
+        if "stock_total_qty" in report_meta and "stock_total_value" in report_meta:
+            canvas.setFont(font_name, 9)
+            canvas.drawString(30, info_y, f"Total Stock Qty: {report_meta['stock_total_qty']:.2f}")
+            canvas.drawRightString(width - 30, info_y, f"Total Stock Value: ₹{report_meta['stock_total_value']:.2f}")
+        canvas.setFont(font_name, 8)
         canvas.drawRightString(width - 30, 30, f"Page {doc.page}")
-        
         canvas.restoreState()
 
     elements = []
     
-    # Table Data
     data = [headers] + rows
+
+    if stock_total_qty is not None and stock_total_value is not None:
+        data.append([
+            "TOTAL",
+            "",
+            f"{stock_total_qty:.2f}",
+            "",
+            f"₹{stock_total_value:.2f}"
+        ])
     
-    # Column Widths
     available_width = width - 60 # 30 left, 30 right margin
     col_count = len(headers)
     col_width = available_width / col_count
     col_widths = [col_width] * col_count
     
     table = Table(data, colWidths=col_widths, repeatRows=1)
-    table.setStyle(TableStyle([
+    body_font = get_unicode_font()
+    style_commands = [
         ('BACKGROUND', (0, 0), (-1, 0), colors.Color(0.9, 0.9, 0.9)),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 1), (-1, -1), body_font),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
         ('FONTSIZE', (0, 0), (-1, -1), 8),
-    ]))
+    ]
+
+    if stock_total_qty is not None and stock_total_value is not None:
+        last_row = len(data) - 1
+        style_commands.append(('FONTNAME', (0, last_row), (-1, last_row), 'Helvetica-Bold'))
+        style_commands.append(('BACKGROUND', (0, last_row), (-1, last_row), colors.Color(0.95, 0.95, 0.95)))
+
+    table.setStyle(TableStyle(style_commands))
     
     elements.append(table)
     

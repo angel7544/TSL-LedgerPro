@@ -14,9 +14,9 @@ class DashboardPage(QWidget):
         layout = QVBoxLayout()
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         
-        title = QLabel("Dashboard")
-        title.setStyleSheet("font-size: 24px; font-weight: bold; color: #1E293B;")
-        layout.addWidget(title)
+        # title = QLabel("Dashboard")
+        # title.setStyleSheet("font-size: 24px; font-weight: bold; color: #1E293B;")
+        # layout.addWidget(title)
         
         # Receivables & Payables Section
         rec_pay_layout = QHBoxLayout()
