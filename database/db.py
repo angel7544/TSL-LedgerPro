@@ -49,21 +49,45 @@ def init_db():
     run_migrations()
 
 def run_migrations():
+    # Only run migrations if not frozen (development) or if explicitly needed.
+    # When frozen, migrations can be risky if import mechanisms fail.
+    # But we need them for updates. Let's wrap them carefully.
+    
+    # V1
     try:
         import update_schema
         update_schema.migrate()
+    except ImportError:
+        pass # Likely frozen and module not found in standard way, or not bundled
     except Exception as e:
         print(f"Migration v1 failed: {e}")
+
+    # V2
     try:
         import update_schema_v2
         update_schema_v2.migrate()
+    except ImportError:
+        pass
     except Exception as e:
         print(f"Migration v2 failed: {e}")
+
+    # V3
     try:
         import update_schema_v3
         update_schema_v3.migrate()
+    except ImportError:
+        pass
     except Exception as e:
         print(f"Migration v3 failed: {e}")
+
+    # V4
+    try:
+        import update_schema_v4
+        update_schema_v4.migrate()
+    except ImportError:
+        pass
+    except Exception as e:
+        print(f"Migration v4 failed: {e}")
 
 def execute_read_query(query, params=()):
     conn = get_connection()

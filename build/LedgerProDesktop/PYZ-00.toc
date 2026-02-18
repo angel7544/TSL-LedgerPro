@@ -514,6 +514,7 @@
   ('dateutil.zoneinfo',
    'C:\\Users\\angel\\AppData\\Roaming\\Python\\Python313\\site-packages\\dateutil\\zoneinfo\\__init__.py',
    'PYMODULE'),
+  ('debug_logger', 'D:\\TSL-ACCOUNTING_ELEC\\debug_logger.py', 'PYMODULE'),
   ('decimal', 'C:\\Python313\\Lib\\decimal.py', 'PYMODULE'),
   ('defusedxml',
    'C:\\Users\\angel\\AppData\\Roaming\\Python\\Python313\\site-packages\\defusedxml\\__init__.py',

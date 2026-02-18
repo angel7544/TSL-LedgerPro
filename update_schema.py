@@ -3,6 +3,10 @@ import os
 from database.db import DB_NAME
 
 def migrate():
+    # Check if DB exists before connecting
+    if not os.path.exists(DB_NAME):
+        return
+
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 

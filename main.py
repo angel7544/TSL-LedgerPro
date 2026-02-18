@@ -1,5 +1,12 @@
 import sys
 import os
+# Setup debug logging first thing
+try:
+    from debug_logger import setup_logging
+    setup_logging()
+except ImportError:
+    pass
+
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QIcon

@@ -15,6 +15,10 @@ def add_column_if_not_exists(cursor, table, column, col_type):
             print(f"Error adding column {column} to {table}: {e}")
 
 def migrate():
+    # Check if DB exists
+    if not os.path.exists(DB_FILE):
+        return
+
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
 
