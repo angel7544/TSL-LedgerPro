@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
-    QStackedWidget, QLabel, QFrame, QDialog, QTextEdit, QStyle, QScrollArea
+    QStackedWidget, QLabel, QFrame, QDialog, QTextEdit, QStyle, QScrollArea, QTabWidget
 )
 from PySide6.QtCore import Qt, QSize, QUrl
 from PySide6.QtGui import QIcon, QAction, QPixmap, QDesktopServices
@@ -41,7 +41,19 @@ class AboutWidget(QWidget):
         version_lbl.setStyleSheet("font-size: 14px; color: #64748B; margin-bottom: 10px;")
         left_layout.addWidget(version_lbl)
         
-        # Content Area (Scrollable text)
+        # Tabs for Content (About, FAQ)
+        tabs = QTabWidget()
+        tabs.setStyleSheet("""
+            QTabWidget::pane { border: none; }
+            QTabBar::tab { background: transparent; padding: 8px 16px; font-weight: 600; color: #64748B; }
+            QTabBar::tab:selected { color: #2563EB; border-bottom: 2px solid #2563EB; }
+        """)
+        
+        # --- Tab 1: About ---
+        about_tab = QWidget()
+        about_layout = QVBoxLayout(about_tab)
+        about_layout.setContentsMargins(0, 10, 0, 0)
+        
         content_scroll = QScrollArea()
         content_scroll.setWidgetResizable(True)
         content_scroll.setFrameShape(QFrame.Shape.NoFrame)
@@ -52,21 +64,21 @@ class AboutWidget(QWidget):
         content_text.setStyleSheet("background-color: transparent; font-size: 14px; line-height: 1.6;")
         content_text.setHtml(
             "<h3>Overview:</h3>"
-            "<p><b>LedgerPro Desktop</b> is a professional accounting and inventory management solution built for small and medium businesses. "
-            "It empowers you to streamline operations, maintain accurate inventory records, and generate GST-compliant invoices effortlessly.</p>"
+            "<p><b>LedgerPro Desktop</b> is a comprehensive, professional-grade accounting and inventory management solution designed for small and medium businesses. "
+            "Built with <b>Python</b> and <b>PySide6</b>, it offers a robust, secure, and offline-first desktop experience for managing finances, GST billing, stock, and reports.</p>"
             
             "<h3>Key Features:</h3>"
             "<ul>"
-            "<li><b>GST Invoicing:</b> Seamlessly handle CGST, SGST, and IGST calculations.</li>"
-            "<li><b>Inventory Management:</b> FIFO-based stock valuation and real-time tracking.</li>"
-            "<li><b>Financials:</b> Track outstanding payments, vendor bills, and expenses.</li>"
-            "<li><b>Reporting:</b> Generate detailed sales, purchase, and tax reports.</li>"
-            "<li><b>Data Security:</b> Secure local database with backup and restore functionality.</li>"
+            "<li><b>Dashboard:</b> Real-time overview of Sales, Purchases, and Receivables with visual charts.</li>"
+            "<li><b>Invoicing & Billing:</b> Create professional GST-compliant B2B/B2C invoices with automatic tax calculations. Manage customer credits and advance payments.</li>"
+            "<li><b>Inventory Management:</b> FIFO-based stock valuation, real-time tracking with low-stock alerts, and HSN/SAC support.</li>"
+            "<li><b>Financial Management:</b> Track Accounts Receivable (AR) & Payable (AP), record payments with partial allocations, and monitor expenses.</li>"
+            "<li><b>Reports & Analytics:</b> Generate detailed Sales/Purchase registers, GST Summaries, Stock Valuation, and Aging reports.</li>"
+            "<li><b>Security & Data:</b> Secure local SQLite database with user authentication and backup/restore tools.</li>"
             "</ul>"
             
-            "<h3>Technical Overview:</h3>"
-            "<p>Built on a robust Python stack using <b>PySide6</b> for a responsive UI and <b>SQLite</b> for reliable data storage. "
-            "Designed for performance and offline-first reliability.</p>"
+            "<h3>Technical Stack:</h3>"
+            "<p>Built using <b>Python 3.11+</b>, <b>PySide6</b> (Qt for Python), <b>SQLite3</b>, and <b>ReportLab</b> for PDF generation.</p>"
             
             "<p style='color: #64748B; font-size: 12px; margin-top: 20px;'>"
             "<i>Disclaimer: This software is intended to assist with business accounting. "
@@ -78,7 +90,57 @@ class AboutWidget(QWidget):
         )
         
         content_scroll.setWidget(content_text)
-        left_layout.addWidget(content_scroll)
+        about_layout.addWidget(content_scroll)
+        tabs.addTab(about_tab, "About")
+        
+        # --- Tab 2: FAQ & Help ---
+        faq_tab = QWidget()
+        faq_layout = QVBoxLayout(faq_tab)
+        faq_layout.setContentsMargins(0, 10, 0, 0)
+        
+        faq_scroll = QScrollArea()
+        faq_scroll.setWidgetResizable(True)
+        faq_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        
+        faq_text = QTextEdit()
+        faq_text.setReadOnly(True)
+        faq_text.setFrameShape(QFrame.Shape.NoFrame)
+        faq_text.setStyleSheet("background-color: transparent; font-size: 14px; line-height: 1.6;")
+        
+        faq_content = """
+        <h3>Frequently Asked Questions</h3>
+        
+        <p><b>Q: How do I create a new invoice?</b><br>
+        A: Go to the <b>Invoices</b> tab and click the <b>+ Create Invoice</b> button. Select a customer, add items, and save.</p>
+        
+        <p><b>Q: How is stock calculated?</b><br>
+        A: Stock is tracked using the <b>FIFO (First-In-First-Out)</b> method. When you sell an item, the cost is calculated based on the oldest available stock batch.</p>
+        
+        <p><b>Q: Can I record partial payments?</b><br>
+        A: Yes! In the <b>Payments</b> tab, click <b>Record Payment</b>. Enter the amount received, and the system will automatically allocate it to the oldest unpaid invoices. You can also manually adjust the allocation.</p>
+        
+        <p><b>Q: How do I handle customer credits/advances?</b><br>
+        A: If a customer pays more than the invoice amount, the excess is stored as <b>Credits</b>. You can view available credits in the <b>Customers</b> list. These credits can be applied to future invoices.</p>
+        
+        <p><b>Q: How do I export reports?</b><br>
+        A: Navigate to the <b>Reports</b> tab. Select the report type (e.g., Sales Register, GST Summary), choose a date range, and click <b>Generate PDF</b> or <b>Export CSV</b>.</p>
+        
+        <p><b>Q: Where is my data stored?</b><br>
+        A: All data is stored securely in a local <b>SQLite database</b> file on your computer. We recommend regularly backing up this file using the <b>Settings</b> > <b>Backup</b> option.</p>
+        
+        <p><b>Q: How do I update my company logo?</b><br>
+        A: Go to <b>Settings</b> and look for the <b>Company Logo</b> section. Upload a new image to reflect it on all invoices and reports.</p>
+        
+        <p><b>Q: Can I use this software offline?</b><br>
+        A: Absolutely! LedgerPro Desktop is designed to work fully offline without an internet connection.</p>
+        """
+        
+        faq_text.setHtml(faq_content)
+        faq_scroll.setWidget(faq_text)
+        faq_layout.addWidget(faq_scroll)
+        tabs.addTab(faq_tab, "FAQ & Help")
+        
+        left_layout.addWidget(tabs)
         
         main_layout.addWidget(left_widget, stretch=6)
         
@@ -95,21 +157,21 @@ class AboutWidget(QWidget):
         logo_container = QHBoxLayout()
         logo_container.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
-        # TSL Icon
-        tsl_path = os.path.join(base_dir, "assets", "tsl_icon.png")
-        if os.path.exists(tsl_path):
-            tsl_lbl = QLabel()
-            pix = QPixmap(tsl_path).scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-            tsl_lbl.setPixmap(pix)
-            logo_container.addWidget(tsl_lbl)
+        # # TSL Icon
+        # tsl_path = os.path.join(base_dir, "assets", "tsl_icon.png")
+        # if os.path.exists(tsl_path):
+        #     tsl_lbl = QLabel()
+        #     pix = QPixmap(tsl_path).scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        #     tsl_lbl.setPixmap(pix)
+        #     logo_container.addWidget(tsl_lbl)
             
-        logo_container.addSpacing(20)
+        # logo_container.addSpacing(20)
         
         # BR31 Logo
         br31_path = os.path.join(base_dir, "assets", "br31logo.png")
         if os.path.exists(br31_path):
             br31_lbl = QLabel()
-            pix = QPixmap(br31_path).scaled(100, 64, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            pix = QPixmap(br31_path).scaled(256, 175, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
             br31_lbl.setPixmap(pix)
             logo_container.addWidget(br31_lbl)
             
@@ -258,9 +320,28 @@ class MainWindow(QMainWindow):
         sidebar_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         
         # App Logo/Title in Sidebar
+        logo_container = QWidget()
+        logo_layout = QHBoxLayout(logo_container)
+        logo_layout.setContentsMargins(20, 0, 20, 20)
+        logo_layout.setSpacing(10)
+        logo_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        
+        # Logo Image
+        icon_path = os.path.join(base_dir, "tsl_icon.png")
+        if not os.path.exists(icon_path):
+             icon_path = os.path.join(base_dir, "assets", "tsl_icon.png")
+             
+        if os.path.exists(icon_path):
+            logo_lbl = QLabel()
+            pix = QPixmap(icon_path).scaled(40, 40, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            logo_lbl.setPixmap(pix)
+            logo_layout.addWidget(logo_lbl)
+
         app_title = QLabel("LedgerPro")
-        app_title.setStyleSheet("font-size: 20px; font-weight: bold; color: #1E293B; padding-left: 20px; margin-bottom: 20px;")
-        sidebar_layout.addWidget(app_title)
+        app_title.setStyleSheet("font-size: 20px; font-weight: bold; color: #1E293B;")
+        logo_layout.addWidget(app_title)
+        
+        sidebar_layout.addWidget(logo_container)
         
         # Navigation Buttons
         self.nav_buttons = []

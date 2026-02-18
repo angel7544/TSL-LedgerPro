@@ -25,14 +25,20 @@ class SplashScreen(QWidget):
             }
             QLabel { color: #1E293B; }
             QProgressBar {
-                border: none;
+                border: 1px solid #E8E8F3;
                 background-color: #F1F5F9;
-                border-radius: 5px;
-                height: 8px;
+                border-radius: 10px;
+                height: 22px;
+                text-align: center;
+                font-weight: bold;
+                color: #348545;
+                font-size: 12px;
             }
             QProgressBar::chunk {
-                background-color: #2563EB;
-                border-radius: 5px;
+                background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #2563EB, stop:1 #3B82F6);
+                border-radius: 8px;
+                width: 10px;
+                margin: 1px;
             }
         """)
 
@@ -76,6 +82,7 @@ class SplashScreen(QWidget):
         # Progress Bar
         self.progress = QProgressBar()
         self.progress.setRange(0, 100)
+        self.progress.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.progress)
         
         layout.addStretch()

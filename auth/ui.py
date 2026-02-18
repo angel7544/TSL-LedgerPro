@@ -3,10 +3,12 @@ from PySide6.QtWidgets import (
     QMessageBox, QFormLayout, QFrame
 )
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QFont, QPalette, QColor, QIcon
+from PySide6.QtGui import QFont, QPalette, QColor, QIcon, QPixmap
 import os
 from auth.auth_logic import login_user, signup_user
 from auth.session import Session
+
+from database.db import execute_read_query, execute_write_query
 
 class LoginWindow(QWidget):
     login_successful = Signal(str)
@@ -15,7 +17,7 @@ class LoginWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Login - LedgerPro")
-        self.setFixedSize(400, 500)
+        self.setFixedSize(400, 600)  # Increased height for logo
         self.setStyleSheet("""
             QWidget { background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #EEF2FF, stop:1 #EFF6FF); font-family: 'Segoe UI'; color: #0F172A; }
             QFrame { background-color: #FFFFFF; border-radius: 16px; border: 1px solid #E2E8F0; }
@@ -29,22 +31,25 @@ class LoginWindow(QWidget):
             QLabel { color: #0F172A; font-size: 11px; font-weight: 500; border: none; }
         """)
         base_dir = os.path.dirname(os.path.dirname(__file__))
-        icon_candidates = [
-            os.path.join(base_dir, "tsl_icon.ico"),
-            os.path.join(base_dir, "assets", "tsl_icon.ico"),
-            os.path.join(base_dir, "tsl_icon.png"),
-            os.path.join(base_dir, "assets", "tsl_icon.png"),
-        ]
-        for path in icon_candidates:
-            if os.path.exists(path):
-                self.setWindowIcon(QIcon(path))
-                break
+        icon_path = os.path.join(base_dir, "tsl_icon.png")
+        if not os.path.exists(icon_path):
+             icon_path = os.path.join(base_dir, "assets", "tsl_icon.png")
+
+        self.setWindowIcon(QIcon(icon_path))
         
         layout = QVBoxLayout()
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.setContentsMargins(32, 32, 32, 32)
         layout.setSpacing(16)
         self.setLayout(layout)
+        
+        # Logo
+        if os.path.exists(icon_path):
+            logo_lbl = QLabel()
+            pix = QPixmap(icon_path).scaled(80, 80, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            logo_lbl.setPixmap(pix)
+            logo_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            layout.addWidget(logo_lbl)
         
         title = QLabel("LedgerPro")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -79,11 +84,22 @@ class LoginWindow(QWidget):
         
         layout.addWidget(form_container)
         
-        # Signup Link
-        signup_link = QPushButton("Don't have an account? Sign up")
-        signup_link.setObjectName("SignupLink")
-        signup_link.clicked.connect(self.switch_to_signup.emit)
-        layout.addWidget(signup_link)
+        # Signup Link (Only if no users exist)
+        try:
+            # Check if any user exists
+            count_res = execute_read_query("SELECT COUNT(*) FROM users")
+            user_count = count_res[0][0] if count_res else 0
+            
+            if user_count == 0:
+                signup_link = QPushButton("Don't have an account? Sign up")
+                signup_link.setObjectName("SignupLink")
+                signup_link.clicked.connect(self.switch_to_signup.emit)
+                layout.addWidget(signup_link)
+        except Exception as e:
+            print(f"Error checking user count: {e}")
+            # Fallback: show signup if error (e.g. table doesn't exist yet?)
+            # But if table doesn't exist, login won't work either.
+            pass
 
     def handle_login(self):
         email = self.email_input.text()
@@ -107,7 +123,7 @@ class SignupWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Sign Up - LedgerPro")
-        self.setFixedSize(400, 550)
+        self.setFixedSize(400, 650)  # Increased height for logo
         self.setStyleSheet("""
             QWidget { background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #EEF2FF, stop:1 #EFF6FF); font-family: 'Segoe UI'; color: #0F172A; }
             QFrame { background-color: #FFFFFF; border-radius: 16px; border: 1px solid #E2E8F0; }
@@ -121,22 +137,25 @@ class SignupWindow(QWidget):
             QLabel { color: #0F172A; font-size: 11px; font-weight: 500; border: none; }
         """)
         base_dir = os.path.dirname(os.path.dirname(__file__))
-        icon_candidates = [
-            os.path.join(base_dir, "tsl_icon.ico"),
-            os.path.join(base_dir, "assets", "tsl_icon.ico"),
-            os.path.join(base_dir, "tsl_icon.png"),
-            os.path.join(base_dir, "assets", "tsl_icon.png"),
-        ]
-        for path in icon_candidates:
-            if os.path.exists(path):
-                self.setWindowIcon(QIcon(path))
-                break
+        icon_path = os.path.join(base_dir, "tsl_icon.png")
+        if not os.path.exists(icon_path):
+             icon_path = os.path.join(base_dir, "assets", "tsl_icon.png")
+
+        self.setWindowIcon(QIcon(icon_path))
         
         layout = QVBoxLayout()
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.setContentsMargins(32, 32, 32, 32)
         layout.setSpacing(16)
         self.setLayout(layout)
+        
+        # Logo
+        if os.path.exists(icon_path):
+            logo_lbl = QLabel()
+            pix = QPixmap(icon_path).scaled(80, 80, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            logo_lbl.setPixmap(pix)
+            logo_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            layout.addWidget(logo_lbl)
         
         title = QLabel("Create Account")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)

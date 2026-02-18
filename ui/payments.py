@@ -9,7 +9,7 @@ from PySide6.QtCore import Qt, QDate
 import os
 import json
 from database.db import execute_read_query, execute_write_query, execute_transaction
-from modules.payment import get_unpaid_invoices, save_payment, generate_payment_number
+from modules.payment import get_unpaid_invoices, save_payment, generate_payment_number, get_customer_credits
 import datetime
 
 class PaymentsPage(QWidget):
@@ -221,6 +221,16 @@ class RecordPaymentDialog(QDialog):
         self.customer_combo.currentIndexChanged.connect(self.load_invoices)
         left_header.addWidget(self.customer_combo)
         
+        # Credits Display
+        self.lbl_credits = QLabel("Available Credits: ₹0.00")
+        self.lbl_credits.setStyleSheet("color: green; font-weight: bold;")
+        left_header.addWidget(self.lbl_credits)
+        
+        self.chk_use_credits = QCheckBox("Use Available Credits")
+        self.chk_use_credits.setChecked(True)
+        self.chk_use_credits.toggled.connect(self.update_summary)
+        left_header.addWidget(self.chk_use_credits)
+        
         left_header.addWidget(QLabel("Amount Received (₹)*"))
         self.amount_received_spin = QDoubleSpinBox()
         self.amount_received_spin.setRange(0, 10000000)
@@ -424,10 +434,16 @@ class RecordPaymentDialog(QDialog):
         if idx <= 0:
             self.table.setRowCount(0)
             self.invoices_data = []
+            self.lbl_credits.setText("Available Credits: ₹0.00")
+            self.current_credits = 0.0
             return
             
         customer_id = self.customer_combo.currentData()
         self.invoices_data = get_unpaid_invoices(customer_id)
+        
+        # Fetch Credits
+        self.current_credits = get_customer_credits(customer_id)
+        self.lbl_credits.setText(f"Available Credits: ₹{self.current_credits:.2f}")
         
         self.table.setRowCount(len(self.invoices_data))
         self.table.blockSignals(True)
@@ -460,6 +476,12 @@ class RecordPaymentDialog(QDialog):
 
     def update_summary(self):
         recv = self.amount_received_spin.value()
+        
+        credits_to_use = 0.0
+        if self.chk_use_credits.isChecked() and hasattr(self, 'current_credits'):
+            credits_to_use = self.current_credits
+            
+        total_available = recv + credits_to_use
         used = 0.0
         
         for r in range(self.table.rowCount()):
@@ -467,7 +489,7 @@ class RecordPaymentDialog(QDialog):
             if spin:
                 used += spin.value()
             
-        excess = recv - used
+        excess = total_available - used
         
         self.lbl_amount_used.setText(f"Amount Used: ₹{used:.2f}")
         self.lbl_amount_excess.setText(f"Amount Excess: ₹{excess:.2f}")
@@ -479,7 +501,11 @@ class RecordPaymentDialog(QDialog):
 
     def auto_apply_payment(self):
         recv = self.amount_received_spin.value()
-        remaining = recv
+        credits_to_use = 0.0
+        if self.chk_use_credits.isChecked() and hasattr(self, 'current_credits'):
+            credits_to_use = self.current_credits
+            
+        remaining = recv + credits_to_use
         
         self.table.blockSignals(True)
         for r in range(self.table.rowCount()):
@@ -527,8 +553,11 @@ class RecordPaymentDialog(QDialog):
                 total_allocated += amount
                 
         if total_allocated > recv:
-            QMessageBox.warning(self, "Error", "Total allocated amount cannot exceed amount received.")
-            return
+            # Check if covered by credits
+            credits_available = self.current_credits if self.chk_use_credits.isChecked() else 0.0
+            if total_allocated > (recv + credits_available):
+                QMessageBox.warning(self, "Error", "Total allocated amount cannot exceed amount received + credits.")
+                return
             
         # Allow excess amount to be treated as credit
         # if not allocations:
@@ -556,7 +585,8 @@ class RecordPaymentDialog(QDialog):
             'attachment_path': self.attachment_path,
             'allocations': allocations,
             'custom_fields': json.dumps(custom_fields_data),
-            'send_thank_you': self.send_note_chk.isChecked()
+            'send_thank_you': self.send_note_chk.isChecked(),
+            'use_credits': self.chk_use_credits.isChecked()
         }
         
         try:

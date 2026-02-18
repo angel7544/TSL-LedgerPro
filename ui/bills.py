@@ -10,7 +10,7 @@ import os
 import json
 from database.db import execute_read_query, execute_write_query
 from modules.invoice import create_bill, update_bill
-from modules.payment import get_unpaid_bills, save_bill_payment, generate_payment_number
+from modules.payment import get_unpaid_bills, save_bill_payment, generate_payment_number, get_vendor_credits
 from pdf.generator import generate_bill_pdf
 import datetime
 
@@ -168,11 +168,21 @@ class RecordBillPaymentDialog(QDialog):
         self.vendor_combo.currentIndexChanged.connect(self.load_bills)
         left_header.addWidget(self.vendor_combo)
         
+        # Credits Display
+        self.lbl_credits = QLabel("Available Credits: ₹0.00")
+        self.lbl_credits.setStyleSheet("color: green; font-weight: bold;")
+        left_header.addWidget(self.lbl_credits)
+        
+        self.chk_use_credits = QCheckBox("Use Available Credits")
+        self.chk_use_credits.setChecked(True)
+        self.chk_use_credits.toggled.connect(self.on_amount_paid_changed)
+        left_header.addWidget(self.chk_use_credits)
+        
         left_header.addWidget(QLabel("Amount Paid (₹)*"))
         self.amount_paid_spin = QDoubleSpinBox()
         self.amount_paid_spin.setRange(0, 10000000)
         self.amount_paid_spin.setPrefix("₹")
-        self.amount_paid_spin.valueChanged.connect(self.update_summary)
+        self.amount_paid_spin.valueChanged.connect(self.on_amount_paid_changed)
         left_header.addWidget(self.amount_paid_spin)
         
         header_layout.addLayout(left_header)
@@ -268,11 +278,17 @@ class RecordBillPaymentDialog(QDialog):
             self.table.setRowCount(0)
             self.bills_data = []
             self.lbl_total_due.setText("Total Due: ₹0.00")
+            self.lbl_credits.setText("Available Credits: ₹0.00")
+            self.current_credits = 0.0
             self.update_summary()
             return
         
         vendor_id = self.vendor_combo.currentData()
         self.bills_data = get_unpaid_bills(vendor_id)
+        
+        # Fetch Credits
+        self.current_credits = get_vendor_credits(vendor_id)
+        self.lbl_credits.setText(f"Available Credits: ₹{self.current_credits:.2f}")
         
         self.table.setRowCount(len(self.bills_data))
         self.table.blockSignals(True)
@@ -299,14 +315,50 @@ class RecordBillPaymentDialog(QDialog):
         self.lbl_total_due.setText(f"Total Due: ₹{total_due:.2f}")
         self.update_summary()
     
+    def on_amount_paid_changed(self):
+        self.auto_allocate()
+        self.update_summary()
+
+    def auto_allocate(self):
+        paid = self.amount_paid_spin.value()
+        
+        credits_to_use = 0.0
+        if self.chk_use_credits.isChecked() and hasattr(self, 'current_credits'):
+            credits_to_use = self.current_credits
+            
+        remaining = paid + credits_to_use
+        
+        self.table.blockSignals(True)
+        for r in range(self.table.rowCount()):
+            spin = self.table.cellWidget(r, 4)
+            balance_due = float(self.table.item(r, 3).text().replace('₹', ''))
+            
+            if remaining > 0:
+                if remaining >= balance_due:
+                    spin.setValue(balance_due)
+                    remaining -= balance_due
+                else:
+                    spin.setValue(remaining)
+                    remaining = 0
+            else:
+                spin.setValue(0)
+        self.table.blockSignals(False)
+    
     def update_summary(self):
         paid = self.amount_paid_spin.value()
+        
+        credits_to_use = 0.0
+        if self.chk_use_credits.isChecked() and hasattr(self, 'current_credits'):
+            credits_to_use = self.current_credits
+            
+        total_available = paid + credits_to_use
+        
         used = 0.0
         for r in range(self.table.rowCount()):
             spin = self.table.cellWidget(r, 4)
             if spin:
                 used += spin.value()
-        balance = paid - used
+        balance = total_available - used
         self.lbl_amount_used.setText(f"Amount Used: ₹{used:.2f}")
         self.lbl_amount_excess.setText(f"Amount Balance: ₹{balance:.2f}")
         if balance < 0:
@@ -339,12 +391,14 @@ class RecordBillPaymentDialog(QDialog):
             QMessageBox.warning(self, "Error", "Total allocated amount cannot exceed amount paid.")
             return
         
-        if not allocations:
-            QMessageBox.warning(self, "Error", "Please allocate payment to at least one bill.")
-            return
-        
+        # Allow saving if there is an excess amount (credit), even if no allocations
+        if not allocations and paid <= 0:
+             QMessageBox.warning(self, "Error", "Please allocate payment to at least one bill or enter an amount greater than 0.")
+             return
+
         data = {
             'vendor_id': vendor_id,
+            'amount_paid': paid,  # Pass total paid amount
             'date': self.date_edit.date().toString("yyyy-MM-dd"),
             'method': self.method_combo.currentText(),
             'reference': self.ref_input.text(),
@@ -356,7 +410,8 @@ class RecordBillPaymentDialog(QDialog):
             'notes': self.notes.toPlainText(),
             'attachment_path': '',
             'allocations': allocations,
-            'custom_fields': '{}'
+            'custom_fields': '{}',
+            'use_credits': self.chk_use_credits.isChecked()
         }
         
         try:
