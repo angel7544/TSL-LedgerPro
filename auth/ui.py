@@ -1,9 +1,10 @@
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, 
+    QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton,
     QMessageBox, QFormLayout, QFrame
 )
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QFont, QPalette, QColor
+from PySide6.QtGui import QFont, QPalette, QColor, QIcon
+import os
 from auth.auth_logic import login_user, signup_user
 from auth.session import Session
 
@@ -16,31 +17,49 @@ class LoginWindow(QWidget):
         self.setWindowTitle("Login - LedgerPro")
         self.setFixedSize(400, 500)
         self.setStyleSheet("""
-            QWidget { background-color: #F5F7FA; font-family: 'Segoe UI'; color: #334155; }
-            QLineEdit { padding: 10px; border: 1px solid #CBD5E1; border-radius: 6px; color: #334155; background-color: white; }
-            QPushButton { padding: 10px; border-radius: 6px; font-weight: bold; }
+            QWidget { background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #EEF2FF, stop:1 #EFF6FF); font-family: 'Segoe UI'; color: #0F172A; }
+            QFrame { background-color: #FFFFFF; border-radius: 16px; border: 1px solid #E2E8F0; }
+            QLineEdit { padding: 10px 12px; border: 1px solid #CBD5E1; border-radius: 8px; color: #0F172A; background-color: #F9FAFB; font-size: 11px; }
+            QLineEdit:focus { border: 1px solid #2563EB; background-color: #FFFFFF; }
+            QPushButton { padding: 10px; border-radius: 8px; font-weight: 600; font-size: 11px; }
             QPushButton#LoginBtn { background-color: #2563EB; color: white; }
             QPushButton#LoginBtn:hover { background-color: #1D4ED8; }
             QPushButton#SignupLink { background-color: transparent; color: #2563EB; border: none; }
             QPushButton#SignupLink:hover { text-decoration: underline; }
-            QLabel { color: #334155; }
+            QLabel { color: #0F172A; font-size: 11px; font-weight: 500; border: none; }
         """)
+        base_dir = os.path.dirname(os.path.dirname(__file__))
+        icon_candidates = [
+            os.path.join(base_dir, "tsl_icon.ico"),
+            os.path.join(base_dir, "assets", "tsl_icon.ico"),
+            os.path.join(base_dir, "tsl_icon.png"),
+            os.path.join(base_dir, "assets", "tsl_icon.png"),
+        ]
+        for path in icon_candidates:
+            if os.path.exists(path):
+                self.setWindowIcon(QIcon(path))
+                break
         
         layout = QVBoxLayout()
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.setContentsMargins(32, 32, 32, 32)
+        layout.setSpacing(16)
         self.setLayout(layout)
         
-        # Logo / Title
         title = QLabel("LedgerPro")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title.setStyleSheet("font-size: 28px; font-weight: bold; color: #1E293B; margin-bottom: 20px;")
+        title.setStyleSheet("font-size: 28px; font-weight: bold; color: #1E293B; margin-bottom: 4px;")
         layout.addWidget(title)
+        subtitle = QLabel("Smart GST accounting and inventory for growing businesses")
+        subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        subtitle.setStyleSheet("font-size: 12px; color: #64748B; margin-bottom: 16px;")
+        layout.addWidget(subtitle)
         
-        # Form Container
         form_container = QFrame()
-        form_container.setStyleSheet("background-color: white; border-radius: 12px; border: 1px solid #E2E8F0;")
+        form_container.setStyleSheet("background-color: white; border-radius: 16px; border: 1px solid #E2E8F0;")
         form_layout = QVBoxLayout(form_container)
         form_layout.setContentsMargins(30, 30, 30, 30)
+        form_layout.setSpacing(10)
         
         self.email_input = QLineEdit()
         self.email_input.setPlaceholderText("Email Address")
@@ -90,31 +109,49 @@ class SignupWindow(QWidget):
         self.setWindowTitle("Sign Up - LedgerPro")
         self.setFixedSize(400, 550)
         self.setStyleSheet("""
-            QWidget { background-color: #F5F7FA; font-family: 'Segoe UI'; color: #334155; }
-            QLineEdit { padding: 10px; border: 1px solid #CBD5E1; border-radius: 6px; color: #334155; background-color: white; }
-            QPushButton { padding: 10px; border-radius: 6px; font-weight: bold; }
-            QPushButton#SignupBtn { background-color: #2563EB; color: white; }
+            QWidget { background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #EEF2FF, stop:1 #EFF6FF); font-family: 'Segoe UI'; color: #0F172A; }
+            QFrame { background-color: #FFFFFF; border-radius: 16px; border: 1px solid #E2E8F0; }
+            QLineEdit { padding: 10px 12px; border: 1px solid #CBD5E1; border-radius: 8px; color: #0F172A; background-color: #F9FAFB; font-size: 11px; }
+            QLineEdit:focus { border: 1px solid #2563EB; background-color: #FFFFFF; }
+            QPushButton { padding: 10px; border-radius: 8px; font-weight: 600; font-size: 11px; }
+            QPushButton#SignupBtn { background-color: #2563EB; color: red; }
             QPushButton#SignupBtn:hover { background-color: #1D4ED8; }
             QPushButton#LoginLink { background-color: transparent; color: #2563EB; border: none; }
             QPushButton#LoginLink:hover { text-decoration: underline; }
-            QLabel { color: #334155; }
+            QLabel { color: #0F172A; font-size: 11px; font-weight: 500; border: none; }
         """)
+        base_dir = os.path.dirname(os.path.dirname(__file__))
+        icon_candidates = [
+            os.path.join(base_dir, "tsl_icon.ico"),
+            os.path.join(base_dir, "assets", "tsl_icon.ico"),
+            os.path.join(base_dir, "tsl_icon.png"),
+            os.path.join(base_dir, "assets", "tsl_icon.png"),
+        ]
+        for path in icon_candidates:
+            if os.path.exists(path):
+                self.setWindowIcon(QIcon(path))
+                break
         
         layout = QVBoxLayout()
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.setContentsMargins(32, 32, 32, 32)
+        layout.setSpacing(16)
         self.setLayout(layout)
         
-        # Logo / Title
         title = QLabel("Create Account")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title.setStyleSheet("font-size: 24px; font-weight: bold; color: #1E293B; margin-bottom: 20px;")
+        title.setStyleSheet("font-size: 24px; font-weight: bold; color: #1E293B; margin-bottom: 4px;")
         layout.addWidget(title)
+        subtitle = QLabel("Set up secure access to your LedgerPro workspace")
+        subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        subtitle.setStyleSheet("font-size: 12px; color: #64748B; margin-bottom: 16px;")
+        layout.addWidget(subtitle)
         
-        # Form Container
         form_container = QFrame()
-        form_container.setStyleSheet("background-color: white; border-radius: 12px; border: 1px solid #E2E8F0;")
+        form_container.setStyleSheet("background-color: white; border-radius: 16px; border: 1px solid #E2E8F0;")
         form_layout = QVBoxLayout(form_container)
         form_layout.setContentsMargins(30, 30, 30, 30)
+        form_layout.setSpacing(10)
         
         self.name_input = QLineEdit()
         self.name_input.setPlaceholderText("Full Name")

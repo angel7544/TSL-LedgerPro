@@ -16,6 +16,7 @@ class BaseCRUDPage(QWidget):
         self.table_name = table_name
         self.columns = columns # List of (display_name, db_column)
         self.form_fields = form_fields # List of (label, db_column, type)
+        self.view_button_enabled = False
         
         self.layout = QVBoxLayout()
         
@@ -88,6 +89,12 @@ class BaseCRUDPage(QWidget):
             action_layout = QHBoxLayout(action_widget)
             action_layout.setContentsMargins(0, 0, 0, 0)
             
+            if getattr(self, "view_button_enabled", False):
+                view_btn = QPushButton("View")
+                view_btn.setStyleSheet("background-color: #06B6D4; color: white; border-radius: 4px; padding: 4px 8px;")
+                view_btn.clicked.connect(lambda checked, row_data=row: self.open_view_dialog(row_data))
+                action_layout.addWidget(view_btn)
+            
             edit_btn = QPushButton("Edit")
             edit_btn.setStyleSheet("background-color: #F59E0B; color: white; border-radius: 4px; padding: 4px 8px;")
             edit_btn.clicked.connect(lambda checked, row_data=row: self.open_form_dialog(row_data))
@@ -114,6 +121,9 @@ class BaseCRUDPage(QWidget):
                 self.refresh_data()
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to delete: {str(e)}")
+
+    def open_view_dialog(self, record_summary):
+        self.open_form_dialog(record_summary)
 
     def open_form_dialog(self, record_summary=None):
         dialog = QDialog(self)
@@ -197,6 +207,7 @@ class ItemsPage(BaseCRUDPage):
                           ("Description", "description", "text"), ("Unit", "unit", "text"), 
                           ("Selling Price", "selling_price", "number"), ("Purchase Price", "purchase_price", "number"),
                           ("GST Rate (%)", "gst_rate", "number"), ("Reorder Point", "reorder_point", "number")])
+        self.view_button_enabled = True
         
         # Add Import/Export Buttons
         import_btn = QPushButton("Import CSV")
@@ -211,9 +222,12 @@ class ItemsPage(BaseCRUDPage):
         self.header.insertWidget(count-1, export_btn)
         self.header.insertWidget(count-1, import_btn)
 
-    def open_form_dialog(self, record_summary=None):
+    def open_view_dialog(self, record_summary):
+        self.open_form_dialog(record_summary, view_only=True)
+
+    def open_form_dialog(self, record_summary=None, view_only=False):
         dialog = QDialog(self)
-        mode = "Edit" if record_summary else "Add"
+        mode = "View" if view_only else ("Edit" if record_summary else "Add")
         dialog.setWindowTitle(f"{mode} Item - Detailed View")
         dialog.resize(900, 700)
         
@@ -283,8 +297,12 @@ class ItemsPage(BaseCRUDPage):
         selected_idx = 0
         for i, v in enumerate(vendors):
             vendor_cb.addItem(v['name'], v['id'])
-            if record and record.get('vendor_id') == v['id']:
-                selected_idx = i + 1
+            if record:
+                try:
+                    if record['vendor_id'] == v['id']:
+                        selected_idx = i + 1
+                except (KeyError, IndexError):
+                    pass
         vendor_cb.setCurrentIndex(selected_idx)
         form_gen.addRow("Preferred Vendor", vendor_cb)
         self.item_inputs['vendor_cb'] = vendor_cb # Special handling
@@ -383,6 +401,10 @@ class ItemsPage(BaseCRUDPage):
         
         tabs.addTab(tab_acct, "Accounts/Other")
         
+        if view_only:
+            for widget in self.item_inputs.values():
+                widget.setEnabled(False)
+        
         # --- Buttons ---
         btn_box = QHBoxLayout()
         save_btn = QPushButton("Save Item")
@@ -395,10 +417,14 @@ class ItemsPage(BaseCRUDPage):
         
         layout.addLayout(btn_box)
         
-        # Connect
         record_id = record['id'] if record else None
-        save_btn.clicked.connect(lambda: self.save_item_custom(dialog, record_id))
-        cancel_btn.clicked.connect(dialog.reject)
+        if view_only:
+            save_btn.setText("Close")
+            cancel_btn.hide()
+            save_btn.clicked.connect(dialog.accept)
+        else:
+            save_btn.clicked.connect(lambda: self.save_item_custom(dialog, record_id))
+            cancel_btn.clicked.connect(dialog.reject)
         
         dialog.exec()
 

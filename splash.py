@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QProgressBar
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QPixmap, QFont
+import os
 
 class SplashScreen(QWidget):
     def __init__(self):
@@ -33,8 +34,23 @@ class SplashScreen(QWidget):
                 border-radius: 5px;
             }
         """)
-        
-        # Logo
+
+        logo_img = QLabel()
+        logo_img.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        base_dir = os.path.dirname(__file__)
+        candidate_paths = [
+            os.path.join(base_dir, "assets", "br31logo.png"),
+            os.path.join(base_dir, "br31logo.png"),
+            os.path.join(base_dir, "assets", "tsl_icon.png"),
+        ]
+        for path in candidate_paths:
+            if os.path.exists(path):
+                pixmap = QPixmap(path)
+                if not pixmap.isNull():
+                    logo_img.setPixmap(pixmap.scaledToHeight(72, Qt.SmoothTransformation))
+                    break
+        layout.addWidget(logo_img)
+
         logo = QLabel("LedgerPro")
         logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         logo.setStyleSheet("font-size: 32px; font-weight: bold; color: #2563EB; margin-bottom: 10px;")

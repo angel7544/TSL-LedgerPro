@@ -1,6 +1,8 @@
 import sys
+import os
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QIcon
 
 from database.db import init_db
 from splash import SplashScreen
@@ -11,6 +13,17 @@ class AppController:
     def __init__(self):
         self.app = QApplication(sys.argv)
         self.app.setApplicationName("LedgerPro Desktop")
+        base_dir = os.path.dirname(__file__)
+        icon_candidates = [
+            os.path.join(base_dir, "tsl_icon.ico"),
+            os.path.join(base_dir, "assets", "tsl_icon.ico"),
+            os.path.join(base_dir, "tsl_icon.png"),
+            os.path.join(base_dir, "assets", "tsl_icon.png"),
+        ]
+        for path in icon_candidates:
+            if os.path.exists(path):
+                self.app.setWindowIcon(QIcon(path))
+                break
         
         # Show Splash
         self.splash = SplashScreen()
