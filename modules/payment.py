@@ -80,11 +80,12 @@ def generate_payment_number():
 def save_payment(data):
     """
     Saves a payment against invoices and updates invoice statuses.
+    Handles unallocated amounts as credits (invoice_id=NULL).
     """
     allocations = data.get('allocations', [])
-    if not allocations:
-        return
-        
+    customer_id = data.get('customer_id')
+    total_received = data.get('amount_received', 0.0)
+    
     payment_date = data.get('date', datetime.date.today().strftime("%Y-%m-%d"))
     method = data.get('method', 'Cash')
     reference = data.get('reference', '')
@@ -101,6 +102,9 @@ def save_payment(data):
     
     transaction_queries = []
     
+    total_allocated = 0.0
+    
+    # Process allocations
     for i, alloc in enumerate(allocations):
         invoice_id = alloc['invoice_id']
         amount = alloc['amount']
@@ -108,18 +112,20 @@ def save_payment(data):
         if amount <= 0:
             continue
             
+        total_allocated += amount
+            
         current_bank_charges = bank_charges if i == 0 else 0.0
         current_tax_deducted = tax_deducted if i == 0 else 0.0
         current_tax_account = tax_account if i == 0 else ''
             
         transaction_queries.append((
             """INSERT INTO payments (
-                invoice_id, amount, date, method, notes, 
+                invoice_id, customer_id, amount, date, method, notes, 
                 payment_number, reference, deposit_to, bank_charges, 
                 tax_deducted, tax_account, attachment_path, custom_fields, send_thank_you
-               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
-                invoice_id, amount, payment_date, method, notes,
+                invoice_id, customer_id, amount, payment_date, method, notes,
                 payment_number, reference, deposit_to, current_bank_charges,
                 current_tax_deducted, current_tax_account, attachment_path, custom_fields, send_thank_you
             )
@@ -141,6 +147,28 @@ def save_payment(data):
                 (invoice_id,)
             ))
             
+    # Handle Unallocated / Excess Amount (Credit)
+    excess_amount = total_received - total_allocated
+    if excess_amount > 0.01:
+        # Only apply bank charges/tax if not applied in allocations
+        apply_charges = (len(allocations) == 0)
+        current_bank_charges = bank_charges if apply_charges else 0.0
+        current_tax_deducted = tax_deducted if apply_charges else 0.0
+        current_tax_account = tax_account if apply_charges else ''
+        
+        transaction_queries.append((
+            """INSERT INTO payments (
+                invoice_id, customer_id, amount, date, method, notes, 
+                payment_number, reference, deposit_to, bank_charges, 
+                tax_deducted, tax_account, attachment_path, custom_fields, send_thank_you
+               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                None, customer_id, excess_amount, payment_date, method, notes,
+                payment_number, reference, deposit_to, current_bank_charges,
+                current_tax_deducted, current_tax_account, attachment_path, custom_fields, send_thank_you
+            )
+        ))
+            
     if transaction_queries:
         execute_transaction(transaction_queries)
 
@@ -149,7 +177,16 @@ def save_bill_payment(data):
     Saves a payment against bills and updates bill statuses.
     """
     allocations = data.get('allocations', [])
-    if not allocations:
+    # if not allocations: return # Allow credits now? Wait, user asked for customer credits. Vendor credits implied?
+    # Let's support vendor credits too for consistency.
+    vendor_id = data.get('vendor_id')
+    total_paid = data.get('amount_paid', 0.0) # Using 'amount_paid' key for bills?
+    # Actually ui/payments.py RecordPaymentDialog handles customers. 
+    # ui/bills.py might handle bill payments? Or does RecordPaymentDialog handle both?
+    # RecordPaymentDialog seems customer focused.
+    # Let's stick to customer credits for now as per request.
+    
+    if not allocations and not vendor_id:
         return
         
     payment_date = data.get('date', datetime.date.today().strftime("%Y-%m-%d"))
@@ -180,12 +217,12 @@ def save_bill_payment(data):
             
         transaction_queries.append((
             """INSERT INTO payments (
-                bill_id, amount, date, method, notes, 
+                bill_id, vendor_id, amount, date, method, notes, 
                 payment_number, reference, deposit_to, bank_charges, 
                 tax_deducted, tax_account, attachment_path, custom_fields
-               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
-                bill_id, amount, payment_date, method, notes,
+                bill_id, vendor_id, amount, payment_date, method, notes,
                 payment_number, reference, deposit_to, current_bank_charges,
                 current_tax_deducted, current_tax_account, attachment_path, custom_fields
             )

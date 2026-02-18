@@ -11,15 +11,15 @@ QWidget {
 
 /* Sidebar */
 #Sidebar {
-    background-color: #1E293B;
-    color: #FFFFFF;
+    background-color: #F8FAFC;
+    border-right: 1px solid #E2E8F0;
     min-width: 220px;
     max-width: 220px;
 }
 
 #Sidebar QPushButton {
     background-color: transparent;
-    color: #94A3B8;
+    color: #475569;
     border: none;
     text-align: left;
     padding: 12px 20px;
@@ -29,13 +29,14 @@ QWidget {
 }
 
 #Sidebar QPushButton:hover {
-    background-color: #334155;
-    color: #FFFFFF;
+    background-color: #E2E8F0;
+    color: #1E293B;
 }
 
 #Sidebar QPushButton:checked {
-    background-color: #2563EB;
-    color: #FFFFFF;
+    background-color: #DBEAFE;
+    color: #2563EB;
+    font-weight: 600;
 }
 
 /* Header */

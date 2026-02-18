@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+env/
+.env
+
+# PyInstaller
+*.spec
+build/
+dist/
+*.manifest
+
+# Database
+*.db
+*.sqlite3
+
+# Logs
+*.log
+
+# VS Code
+.vscode/
+
+# PDF Output
+invoices_pdf/
+bills_pdf/
+reports_pdf/

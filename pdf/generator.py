@@ -559,6 +559,10 @@ def generate_generic_report_pdf(report_data, headers, rows, filename="report.pdf
     # Optional: compute stock totals for Stock Valuation report
     stock_total_qty = None
     stock_total_value = None
+    
+    # Avoid mutating caller's dict
+    report_meta = dict(report_data)
+    
     if title.upper() == "STOCK VALUATION" and len(headers) >= 5:
         try:
             qty_idx = 2
@@ -580,11 +584,13 @@ def generate_generic_report_pdf(report_data, headers, rows, filename="report.pdf
             stock_total_qty = None
             stock_total_value = None
 
-    # Avoid mutating caller's dict
-    report_meta = dict(report_data)
     if stock_total_qty is not None and stock_total_value is not None:
-        report_meta["stock_total_qty"] = stock_total_qty
-        report_meta["stock_total_value"] = stock_total_value
+        try:
+            report_meta["stock_total_qty"] = float(stock_total_qty)
+            report_meta["stock_total_value"] = float(stock_total_value)
+        except ValueError:
+            report_meta["stock_total_qty"] = 0.0
+            report_meta["stock_total_value"] = 0.0
     
     def draw_page_header(canvas, doc):
         canvas.saveState()
@@ -619,8 +625,28 @@ def generate_generic_report_pdf(report_data, headers, rows, filename="report.pdf
     
     available_width = width - 60 # 30 left, 30 right margin
     col_count = len(headers)
-    col_width = available_width / col_count
-    col_widths = [col_width] * col_count
+    
+    # Manual column width adjustments
+    # A4 Width ~ 595. Margins 30+30=60. Available ~535.
+    custom_col_widths = {
+        "STOCK VALUATION": [215, 80, 70, 80, 90],
+        "SALES REPORT": [70, 195, 80, 100, 90],
+        "PURCHASE REPORT": [70, 195, 80, 100, 90],
+        "OUTSTANDING INVOICES": [70, 195, 80, 90, 100],
+        "PRICE LIST": [250, 135, 150],
+        "AR AGING REPORT": [70, 165, 80, 70, 60, 90],
+        "AP AGING REPORT": [70, 165, 80, 70, 60, 90],
+    }
+    
+    col_widths = None
+    if title.upper() in custom_col_widths:
+        widths = custom_col_widths[title.upper()]
+        if len(widths) == col_count:
+            col_widths = widths
+            
+    if not col_widths:
+        col_width = available_width / col_count
+        col_widths = [col_width] * col_count
     
     table = Table(data, colWidths=col_widths, repeatRows=1)
     body_font = get_unicode_font()

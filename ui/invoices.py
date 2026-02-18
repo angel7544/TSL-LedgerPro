@@ -255,7 +255,9 @@ class CreateInvoiceDialog(QDialog):
         super().__init__(parent)
         self.invoice_data = invoice_data
         self.setWindowTitle("Edit Invoice" if invoice_data else "Create New Invoice")
-        self.setFixedSize(900, 700)
+        self.resize(900, 700)
+        # Enable Maximize Button
+        self.setWindowFlags(self.windowFlags() | Qt.WindowType.WindowMaximizeButtonHint)
         
         main_layout = QVBoxLayout()
         
@@ -312,8 +314,8 @@ class CreateInvoiceDialog(QDialog):
         
         # --- Items Table ---
         self.items_table = QTableWidget()
-        self.items_table.setColumnCount(6)
-        self.items_table.setHorizontalHeaderLabels(["Item", "Qty", "Rate", "Disc %", "GST %", "Total"])
+        self.items_table.setColumnCount(7)
+        self.items_table.setHorizontalHeaderLabels(["Item", "Qty", "Rate", "Disc %", "GST %", "Total", "Action"])
         self.items_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.items_table.setMinimumHeight(200)
         
@@ -558,7 +560,7 @@ class CreateInvoiceDialog(QDialog):
             qty_val = "1"
             disc_val = "0"
 
-        combo.currentIndexChanged.connect(lambda idx, r=row: self.on_item_changed(r))
+        combo.currentIndexChanged.connect(self.on_item_changed)
         
         qty = QLineEdit(qty_val)
         rate_edit = QLineEdit(rate)
@@ -579,9 +581,41 @@ class CreateInvoiceDialog(QDialog):
         self.items_table.setCellWidget(row, 4, gst_edit)
         self.items_table.setCellWidget(row, 5, total)
         
+        # Remove Button
+        remove_btn = QPushButton("X")
+        remove_btn.setStyleSheet("color: red; font-weight: bold;")
+        remove_btn.clicked.connect(self.remove_item_row)
+        self.items_table.setCellWidget(row, 6, remove_btn)
+        
         self.calculate_total()
 
-    def on_item_changed(self, row):
+    def remove_item_row(self):
+        row = self.get_sender_row()
+        if row >= 0:
+            self.items_table.removeRow(row)
+            self.calculate_total()
+
+    def get_sender_row(self):
+        sender = self.sender()
+        if not sender: return -1
+        
+        # Try finding by position first (faster)
+        pos = sender.parent().mapTo(self.items_table.viewport(), sender.pos())
+        index = self.items_table.indexAt(pos)
+        if index.isValid():
+            return index.row()
+            
+        # Fallback search
+        for r in range(self.items_table.rowCount()):
+            for c in range(self.items_table.columnCount()):
+                if self.items_table.cellWidget(r, c) == sender:
+                    return r
+        return -1
+
+    def on_item_changed(self):
+        row = self.get_sender_row()
+        if row < 0: return
+        
         combo = self.items_table.cellWidget(row, 0)
         item_data = combo.currentData()
         if item_data:

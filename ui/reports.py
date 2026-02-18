@@ -5,7 +5,11 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import QDate, QUrl
 from PySide6.QtGui import QDesktopServices
-from modules.reports_logic import get_sales_report, get_purchase_report, get_gst_report, get_outstanding_invoices, get_stock_valuation
+from modules.reports_logic import (
+    get_sales_report, get_purchase_report, get_gst_report, 
+    get_outstanding_invoices, get_stock_valuation,
+    get_ar_aging_report, get_ap_aging_report
+)
 from database.db import execute_read_query
 from pdf.generator import generate_price_list_pdf, generate_generic_report_pdf
 import os
@@ -58,6 +62,8 @@ class ReportsPage(QWidget):
         self.outstanding_data = []
         self.stock_data_list = []
         self.price_list_data = []
+        self.ar_aging_data = {}
+        self.ap_aging_data = {}
 
         # Tabs
         self.tabs = QTabWidget()
@@ -68,9 +74,12 @@ class ReportsPage(QWidget):
         self.tabs.addTab(self.create_outstanding_tab(), "Outstanding")
         self.tabs.addTab(self.create_stock_tab(), "Stock Valuation")
         self.tabs.addTab(self.create_price_list_tab(), "Price List")
+        self.tabs.addTab(self.create_ar_aging_tab(), "AR Aging")
+        self.tabs.addTab(self.create_ap_aging_tab(), "AP Aging")
         
         layout.addWidget(self.tabs)
         self.setLayout(layout)
+
 
     def create_sales_tab(self):
         self.sales_table = QTableWidget()
@@ -122,6 +131,20 @@ class ReportsPage(QWidget):
         self.price_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         return self.price_table
 
+    def create_ar_aging_tab(self):
+        self.ar_aging_table = QTableWidget()
+        self.ar_aging_table.setColumnCount(6)
+        self.ar_aging_table.setHorizontalHeaderLabels(["Inv #", "Customer", "Due Date", "Bucket", "Days Overdue", "Amount"])
+        self.ar_aging_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        return self.ar_aging_table
+        
+    def create_ap_aging_tab(self):
+        self.ap_aging_table = QTableWidget()
+        self.ap_aging_table.setColumnCount(6)
+        self.ap_aging_table.setHorizontalHeaderLabels(["Bill #", "Vendor", "Due Date", "Bucket", "Days Overdue", "Amount"])
+        self.ap_aging_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        return self.ap_aging_table
+
     def refresh_all(self):
         start = self.start_date.date().toString("yyyy-MM-dd")
         end = self.end_date.date().toString("yyyy-MM-dd")
@@ -146,6 +169,10 @@ class ReportsPage(QWidget):
         
         # Price List
         self.price_list_data = execute_read_query("SELECT name, sku, selling_price FROM items ORDER BY name")
+        
+        # Aging Reports
+        self.ar_aging_data = get_ar_aging_report()
+        self.ap_aging_data = get_ap_aging_report()
         
         self.filter_current_tab()
 
@@ -199,7 +226,7 @@ class ReportsPage(QWidget):
                 self.stock_table.setItem(r, 2, QTableWidgetItem(str(row['stock_on_hand'])))
                 self.stock_table.setItem(r, 3, QTableWidgetItem(f"₹{row['purchase_price']:.2f}"))
                 self.stock_table.setItem(r, 4, QTableWidgetItem(f"₹{row['total_value']:.2f}"))
-                
+        
         elif tab_index == 5: # Price List
             filtered = [r for r in self.price_list_data if matches(r, ['name', 'sku'])]
             self.price_table.setRowCount(len(filtered))
@@ -207,6 +234,40 @@ class ReportsPage(QWidget):
                 self.price_table.setItem(r, 0, QTableWidgetItem(row['name']))
                 self.price_table.setItem(r, 1, QTableWidgetItem(row['sku'] or ""))
                 self.price_table.setItem(r, 2, QTableWidgetItem(f"₹{row['selling_price']:.2f}"))
+        
+        elif tab_index == 6: # AR Aging
+            rows = []
+            for bucket, items in self.ar_aging_data.items():
+                for item in items:
+                    item['bucket'] = bucket
+                    if matches(item, ['invoice_number', 'customer_name', 'bucket']):
+                        rows.append(item)
+            
+            self.ar_aging_table.setRowCount(len(rows))
+            for r, row in enumerate(rows):
+                self.ar_aging_table.setItem(r, 0, QTableWidgetItem(row['invoice_number']))
+                self.ar_aging_table.setItem(r, 1, QTableWidgetItem(row['customer_name']))
+                self.ar_aging_table.setItem(r, 2, QTableWidgetItem(str(row['due_date'])))
+                self.ar_aging_table.setItem(r, 3, QTableWidgetItem(row['bucket']))
+                self.ar_aging_table.setItem(r, 4, QTableWidgetItem(str(row['days_overdue'])))
+                self.ar_aging_table.setItem(r, 5, QTableWidgetItem(f"₹{row['amount']:.2f}"))
+                
+        elif tab_index == 7: # AP Aging
+            rows = []
+            for bucket, items in self.ap_aging_data.items():
+                for item in items:
+                    item['bucket'] = bucket
+                    if matches(item, ['bill_number', 'vendor_name', 'bucket']):
+                        rows.append(item)
+            
+            self.ap_aging_table.setRowCount(len(rows))
+            for r, row in enumerate(rows):
+                self.ap_aging_table.setItem(r, 0, QTableWidgetItem(row['bill_number']))
+                self.ap_aging_table.setItem(r, 1, QTableWidgetItem(row['vendor_name']))
+                self.ap_aging_table.setItem(r, 2, QTableWidgetItem(str(row['due_date'])))
+                self.ap_aging_table.setItem(r, 3, QTableWidgetItem(row['bucket']))
+                self.ap_aging_table.setItem(r, 4, QTableWidgetItem(str(row['days_overdue'])))
+                self.ap_aging_table.setItem(r, 5, QTableWidgetItem(f"₹{row['amount']:.2f}"))
 
     def print_current_report(self):
         tab_index = self.tabs.currentIndex()
@@ -281,6 +342,18 @@ class ReportsPage(QWidget):
                 filename = os.path.join(folder, "price_list.pdf")
                 headers = ["Item Name", "SKU", "Selling Price"]
                 rows = self.get_table_data(self.price_table)
+                
+            elif tab_index == 6: # AR Aging
+                title = "AR AGING REPORT"
+                filename = os.path.join(folder, "ar_aging_report.pdf")
+                headers = ["Inv #", "Customer", "Due Date", "Bucket", "Days Overdue", "Amount"]
+                rows = self.get_table_data(self.ar_aging_table)
+                
+            elif tab_index == 7: # AP Aging
+                title = "AP AGING REPORT"
+                filename = os.path.join(folder, "ap_aging_report.pdf")
+                headers = ["Bill #", "Vendor", "Due Date", "Bucket", "Days Overdue", "Amount"]
+                rows = self.get_table_data(self.ap_aging_table)
             
             # 3. Generate PDF
             generate_generic_report_pdf(report_data, headers, rows, filename, title)

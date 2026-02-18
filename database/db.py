@@ -1,8 +1,20 @@
 import sqlite3
 import os
+import sys
 
-DB_NAME = os.path.join(os.path.dirname(__file__), "ledgerpro.db")
-SCHEMA_FILE = os.path.join(os.path.dirname(__file__), "schema.sql")
+def _resolve_paths():
+    if getattr(sys, "frozen", False):
+        exe_dir = os.path.dirname(sys.executable)
+        db_dir = os.path.join(exe_dir, "data")
+        os.makedirs(db_dir, exist_ok=True)
+        db_name = os.path.join(db_dir, "ledgerpro.db")
+        meipass = getattr(sys, "_MEIPASS", exe_dir)
+        schema_file = os.path.join(meipass, "database", "schema.sql")
+        return db_name, schema_file
+    base_dir = os.path.dirname(__file__)
+    return os.path.join(base_dir, "ledgerpro.db"), os.path.join(base_dir, "schema.sql")
+
+DB_NAME, SCHEMA_FILE = _resolve_paths()
 
 def get_connection():
     # Increased timeout to 30 seconds to prevent "database is locked" errors
@@ -39,18 +51,19 @@ def init_db():
 def run_migrations():
     try:
         import update_schema
-    except Exception:
-        pass
+        update_schema.migrate()
+    except Exception as e:
+        print(f"Migration v1 failed: {e}")
     try:
         import update_schema_v2
         update_schema_v2.migrate()
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Migration v2 failed: {e}")
     try:
         import update_schema_v3
         update_schema_v3.migrate()
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Migration v3 failed: {e}")
 
 def execute_read_query(query, params=()):
     conn = get_connection()

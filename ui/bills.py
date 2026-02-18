@@ -148,6 +148,8 @@ class RecordBillPaymentDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Record Payment (Purchases)")
         self.resize(900, 700)
+        # Enable Maximize Button
+        self.setWindowFlags(self.windowFlags() | Qt.WindowType.WindowMaximizeButtonHint)
         
         main_layout = QVBoxLayout()
         

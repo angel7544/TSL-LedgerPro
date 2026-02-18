@@ -12,11 +12,192 @@ from database.db import execute_read_query, execute_write_query, execute_transac
 from modules.payment import get_unpaid_invoices, save_payment, generate_payment_number
 import datetime
 
+class PaymentsPage(QWidget):
+    def __init__(self):
+        super().__init__()
+        layout = QVBoxLayout()
+        
+        # Header
+        header_layout = QHBoxLayout()
+        title = QLabel("Payment Records")
+        title.setStyleSheet("font-size: 24px; font-weight: bold;")
+        
+        header_layout.addWidget(title)
+        header_layout.addStretch()
+        
+        refresh_btn = QPushButton("Refresh")
+        refresh_btn.clicked.connect(self.refresh_data)
+        header_layout.addWidget(refresh_btn)
+        
+        layout.addLayout(header_layout)
+        
+        # Table
+        self.table = QTableWidget()
+        self.table.setColumnCount(8)
+        self.table.setHorizontalHeaderLabels(["Date", "Payment #", "Party", "Type", "Amount", "Mode", "Reference", "Actions"])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        
+        layout.addWidget(self.table)
+        
+        self.setLayout(layout)
+        self.refresh_data()
+
+    def refresh_data(self):
+        # Query for Customer Payments
+        # Include payments with invoice_id IS NULL (Credits)
+        query_cust = """
+            SELECT p.id, p.date, p.payment_number, p.amount, p.method, p.reference, p.notes,
+                   c.name as party_name, 'Customer' as party_type
+            FROM payments p
+            JOIN customers c ON p.customer_id = c.id
+        """
+        
+        # Query for Vendor Payments (Bills)
+        query_vend = """
+            SELECT p.id, p.date, p.payment_number, p.amount, p.method, p.reference, p.notes,
+                   v.name as party_name, 'Vendor' as party_type
+            FROM payments p
+            JOIN bills b ON p.bill_id = b.id
+            JOIN vendors v ON b.vendor_id = v.id
+        """
+        
+        rows = []
+        try:
+            rows_cust = execute_read_query(query_cust)
+            rows.extend(rows_cust)
+        except Exception as e:
+            print(f"Error fetching customer payments: {e}")
+
+        try:
+            rows_vend = execute_read_query(query_vend)
+            rows.extend(rows_vend)
+        except Exception as e:
+            # It's possible bill_id column or tables don't exist yet if purchase module isn't fully set up
+            print(f"Error fetching vendor payments: {e}")
+            
+        # Sort by date desc
+        rows.sort(key=lambda x: x['date'], reverse=True)
+        
+        self.table.setRowCount(len(rows))
+        
+        for row_idx, row in enumerate(rows):
+            self.table.setItem(row_idx, 0, QTableWidgetItem(str(row['date'])))
+            self.table.setItem(row_idx, 1, QTableWidgetItem(row['payment_number'] or ""))
+            self.table.setItem(row_idx, 2, QTableWidgetItem(row['party_name']))
+            self.table.setItem(row_idx, 3, QTableWidgetItem(row['party_type']))
+            self.table.setItem(row_idx, 4, QTableWidgetItem(f"₹{row['amount']:.2f}"))
+            self.table.setItem(row_idx, 5, QTableWidgetItem(row['method']))
+            self.table.setItem(row_idx, 6, QTableWidgetItem(row['reference'] or ""))
+            
+            # Action buttons
+            btn_widget = QWidget()
+            btn_layout = QHBoxLayout(btn_widget)
+            btn_layout.setContentsMargins(0, 0, 0, 0)
+            
+            edit_btn = QPushButton("Edit")
+            edit_btn.clicked.connect(lambda checked, r=row['id']: self.edit_payment(r))
+            btn_layout.addWidget(edit_btn)
+            
+            self.table.setCellWidget(row_idx, 7, btn_widget)
+
+    def edit_payment(self, payment_id):
+        dialog = EditPaymentDialog(payment_id, self)
+        if dialog.exec():
+            self.refresh_data()
+
+class EditPaymentDialog(QDialog):
+    def __init__(self, payment_id, parent=None):
+        super().__init__(parent)
+        self.payment_id = payment_id
+        self.setWindowTitle("Edit Payment")
+        self.setMinimumSize(500, 400)
+        # Enable Maximize Button
+        self.setWindowFlags(self.windowFlags() | Qt.WindowType.WindowMaximizeButtonHint)
+        
+        layout = QFormLayout()
+        
+        # Load Data
+        query = "SELECT * FROM payments WHERE id = ?"
+        rows = execute_read_query(query, (payment_id,))
+        if not rows:
+            self.reject()
+            return
+        self.data = rows[0]
+        
+        # Fields
+        self.payment_number = QLineEdit(self.data['payment_number'])
+        self.payment_number.setReadOnly(True) # Keep ID distinct
+        layout.addRow("Payment #:", self.payment_number)
+        
+        self.amount = QDoubleSpinBox()
+        self.amount.setRange(0, 10000000)
+        self.amount.setPrefix("₹")
+        self.amount.setValue(self.data['amount'])
+        self.original_amount = self.data['amount']
+        # self.amount.setReadOnly(True) # Now editable
+        layout.addRow("Amount:", self.amount)
+        
+        self.date_edit = QDateEdit()
+        self.date_edit.setCalendarPopup(True)
+        self.date_edit.setDate(QDate.fromString(self.data['date'], "yyyy-MM-dd"))
+        layout.addRow("Date:", self.date_edit)
+        
+        self.method_combo = QComboBox()
+        self.method_combo.addItems(["Cash", "Bank Transfer", "UPI", "Cheque", "Credit Card"])
+        self.method_combo.setCurrentText(self.data['method'])
+        layout.addRow("Method:", self.method_combo)
+        
+        self.reference = QLineEdit(self.data['reference'] or "")
+        layout.addRow("Reference:", self.reference)
+        
+        self.notes = QTextEdit()
+        self.notes.setPlainText(self.data['notes'] or "")
+        layout.addRow("Notes/Remarks:", self.notes)
+        
+        # Buttons
+        btn_layout = QHBoxLayout()
+        save_btn = QPushButton("Update")
+        save_btn.clicked.connect(self.save)
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+        
+        btn_layout.addWidget(cancel_btn)
+        btn_layout.addWidget(save_btn)
+        
+        layout.addRow(btn_layout)
+        self.setLayout(layout)
+
+    def save(self):
+        new_date = self.date_edit.date().toString("yyyy-MM-dd")
+        new_method = self.method_combo.currentText()
+        new_ref = self.reference.text()
+        new_notes = self.notes.toPlainText()
+        new_amount = self.amount.value()
+
+        if new_amount != self.original_amount and not new_notes.strip():
+            QMessageBox.warning(self, "Validation Error", "Please provide a note/remark for changing the payment amount.")
+            return
+        
+        query = """
+            UPDATE payments 
+            SET date = ?, method = ?, reference = ?, notes = ?, amount = ?
+            WHERE id = ?
+        """
+        try:
+            execute_write_query(query, (new_date, new_method, new_ref, new_notes, new_amount, self.payment_id))
+            QMessageBox.information(self, "Success", "Payment updated successfully")
+            self.accept()
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to update payment: {str(e)}")
+
 class RecordPaymentDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Record Payment")
         self.resize(900, 700)
+        # Enable Maximize Button
+        self.setWindowFlags(self.windowFlags() | Qt.WindowType.WindowMaximizeButtonHint)
         
         main_layout = QVBoxLayout()
         
@@ -135,6 +316,7 @@ class RecordPaymentDialog(QDialog):
         # Left Footer (Notes, Attachments)
         left_footer = QVBoxLayout()
         
+        # Notes
         left_footer.addWidget(QLabel("Notes (Internal use)"))
         self.notes = QTextEdit()
         self.notes.setMaximumHeight(60)
@@ -348,9 +530,10 @@ class RecordPaymentDialog(QDialog):
             QMessageBox.warning(self, "Error", "Total allocated amount cannot exceed amount received.")
             return
             
-        if not allocations:
-             QMessageBox.warning(self, "Error", "Please allocate payment to at least one invoice.")
-             return
+        # Allow excess amount to be treated as credit
+        # if not allocations:
+        #      QMessageBox.warning(self, "Error", "Please allocate payment to at least one invoice.")
+        #      return
 
         # Collect Custom Fields
         custom_fields_data = {}
@@ -360,6 +543,7 @@ class RecordPaymentDialog(QDialog):
 
         data = {
             'customer_id': customer_id,
+            'amount_received': recv,
             'date': self.date_edit.date().toString("yyyy-MM-dd"),
             'method': self.method_combo.currentText(),
             'reference': self.ref_input.text(),

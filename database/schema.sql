@@ -44,7 +44,27 @@ CREATE TABLE IF NOT EXISTS items (
     purchase_price REAL DEFAULT 0,
     reorder_point REAL DEFAULT 0,
     stock_on_hand REAL DEFAULT 0,
+    opening_stock REAL DEFAULT 0,
     opening_stock_value REAL DEFAULT 0,
+    
+    -- Added from migrations
+    account_code TEXT,
+    purchase_account_code TEXT,
+    inventory_account_code TEXT,
+    taxable INTEGER DEFAULT 1,
+    exemption_reason TEXT,
+    taxability_type TEXT,
+    product_type TEXT,
+    intra_state_tax_rate REAL DEFAULT 0,
+    inter_state_tax_rate REAL DEFAULT 0,
+    purchase_description TEXT,
+    inventory_valuation_method TEXT,
+    item_type TEXT DEFAULT 'Goods',
+    is_sellable INTEGER DEFAULT 1,
+    is_purchasable INTEGER DEFAULT 1,
+    track_inventory INTEGER DEFAULT 1,
+    vendor_id INTEGER,
+    
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -74,6 +94,21 @@ CREATE TABLE IF NOT EXISTS invoices (
     grand_total REAL DEFAULT 0,
     status TEXT DEFAULT 'Draft', -- Draft, Sent, Paid, Overdue
     notes TEXT,
+    
+    -- Added from migrations
+    order_number TEXT,
+    terms TEXT,
+    salesperson TEXT,
+    subject TEXT,
+    customer_notes TEXT,
+    terms_conditions TEXT,
+    round_off REAL DEFAULT 0,
+    tds_amount REAL DEFAULT 0,
+    tcs_amount REAL DEFAULT 0,
+    attachment_path TEXT,
+    custom_fields TEXT,
+    adjustment REAL DEFAULT 0,
+    
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (customer_id) REFERENCES customers(id)
 );
@@ -103,6 +138,19 @@ CREATE TABLE IF NOT EXISTS bills (
     tax_amount REAL DEFAULT 0,
     grand_total REAL DEFAULT 0,
     status TEXT DEFAULT 'Draft',
+    
+    -- Added from migrations
+    order_number TEXT,
+    payment_terms TEXT,
+    reverse_charge INTEGER DEFAULT 0, -- Boolean
+    adjustment REAL DEFAULT 0,
+    tds_amount REAL DEFAULT 0,
+    tcs_amount REAL DEFAULT 0,
+    attachment_path TEXT,
+    notes TEXT,
+    discount_amount REAL DEFAULT 0,
+    custom_fields TEXT,
+    
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (vendor_id) REFERENCES vendors(id)
 );
@@ -129,6 +177,18 @@ CREATE TABLE IF NOT EXISTS payments (
     date DATE NOT NULL,
     method TEXT, -- Cash, Bank, UPI, etc.
     notes TEXT,
+    
+    -- Added from migrations
+    payment_number TEXT,
+    deposit_to TEXT,
+    bank_charges REAL DEFAULT 0,
+    tax_deducted REAL DEFAULT 0,
+    tax_account TEXT,
+    attachment_path TEXT,
+    reference TEXT,
+    send_thank_you INTEGER DEFAULT 0,
+    custom_fields TEXT,
+    
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (invoice_id) REFERENCES invoices(id),
     FOREIGN KEY (bill_id) REFERENCES bills(id)

@@ -2,6 +2,7 @@ from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QProgressBar
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QPixmap, QFont
 import os
+import sys
 
 class SplashScreen(QWidget):
     def __init__(self):
@@ -38,11 +39,22 @@ class SplashScreen(QWidget):
         logo_img = QLabel()
         logo_img.setAlignment(Qt.AlignmentFlag.AlignCenter)
         base_dir = os.path.dirname(__file__)
+        project_root = os.path.dirname(base_dir)
+        meipass = getattr(sys, "_MEIPASS", None)
         candidate_paths = [
             os.path.join(base_dir, "assets", "br31logo.png"),
             os.path.join(base_dir, "br31logo.png"),
+            os.path.join(project_root, "assets", "br31logo.png"),
+            os.path.join(project_root, "br31logo.png"),
             os.path.join(base_dir, "assets", "tsl_icon.png"),
+            os.path.join(project_root, "assets", "tsl_icon.png"),
         ]
+        if meipass:
+            candidate_paths.extend([
+                os.path.join(meipass, "assets", "br31logo.png"),
+                os.path.join(meipass, "br31logo.png"),
+                os.path.join(meipass, "assets", "tsl_icon.png"),
+            ])
         for path in candidate_paths:
             if os.path.exists(path):
                 pixmap = QPixmap(path)

@@ -1,7 +1,8 @@
 import sqlite3
 import os
+from database.db import DB_NAME
 
-DB_FILE = "database/ledgerpro.db"
+DB_FILE = DB_NAME
 
 def add_column_if_not_exists(cursor, table, column, col_type):
     try:

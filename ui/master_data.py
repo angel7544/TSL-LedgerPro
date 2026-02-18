@@ -79,10 +79,28 @@ class BaseCRUDPage(QWidget):
 
         self.table.setRowCount(len(filtered_rows))
         
+        formatters = getattr(self, "column_formatters", {})
+
         for r, row in enumerate(filtered_rows):
             for c, col in enumerate(self.columns):
-                val = row[col[1]]
-                self.table.setItem(r, c, QTableWidgetItem(str(val) if val is not None else ""))
+                key = col[1]
+                val = row[key]
+                
+                if key in formatters:
+                    try:
+                        text = formatters[key](val)
+                    except:
+                        text = str(val) if val is not None else ""
+                else:
+                    text = str(val) if val is not None else ""
+                    
+                item = QTableWidgetItem(text)
+                
+                # Align right for numbers
+                if key in formatters or isinstance(val, (int, float)):
+                     item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+                     
+                self.table.setItem(r, c, item)
             
             # Action Buttons
             action_widget = QWidget()
@@ -188,16 +206,44 @@ class BaseCRUDPage(QWidget):
 class CustomersPage(BaseCRUDPage):
     def __init__(self):
         super().__init__("Customers", "customers", 
-                         [("Name", "name"), ("Phone", "phone"), ("Email", "email"), ("GSTIN", "gstin"), ("State", "state")],
+                         [("Name", "name"), ("Phone", "phone"), ("Email", "email"), ("GSTIN", "gstin"), ("State", "state"), ("Credits", "credits")],
                          [("Name", "name", "text"), ("Phone", "phone", "text"), ("Email", "email", "text"), 
                           ("Address", "address", "text"), ("GSTIN", "gstin", "text"), ("State", "state", "text")])
+
+    def refresh_data(self):
+        # Override to include credits calculation
+        query = """
+            SELECT c.*, 
+            COALESCE((SELECT SUM(amount) FROM payments WHERE customer_id = c.id AND invoice_id IS NULL), 0) as credits
+            FROM customers c
+            ORDER BY c.id DESC
+        """
+        self.column_formatters = {
+            'credits': lambda x: f"₹{float(x):.2f}"
+        }
+        self.all_rows = execute_read_query(query)
+        self.filter_data()
 
 class VendorsPage(BaseCRUDPage):
     def __init__(self):
         super().__init__("Vendors", "vendors",
-                         [("Name", "name"), ("Phone", "phone"), ("GSTIN", "gstin"), ("State", "state")],
+                         [("Name", "name"), ("Phone", "phone"), ("GSTIN", "gstin"), ("State", "state"), ("Credits", "credits")],
                          [("Name", "name", "text"), ("Phone", "phone", "text"), ("Email", "email", "text"),
                           ("Address", "address", "text"), ("GSTIN", "gstin", "text"), ("State", "state", "text")])
+
+    def refresh_data(self):
+        # Override to include credits calculation
+        query = """
+            SELECT v.*, 
+            COALESCE((SELECT SUM(amount) FROM payments WHERE vendor_id = v.id AND bill_id IS NULL), 0) as credits
+            FROM vendors v
+            ORDER BY v.id DESC
+        """
+        self.column_formatters = {
+            'credits': lambda x: f"₹{float(x):.2f}"
+        }
+        self.all_rows = execute_read_query(query)
+        self.filter_data()
 
 class ItemsPage(BaseCRUDPage):
     def __init__(self):

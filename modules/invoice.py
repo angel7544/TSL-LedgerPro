@@ -108,6 +108,12 @@ def create_invoice(data):
         # Prepare stock reduction
         stock_reductions.append((item_id, qty))
 
+    # Apply adjustments to grand_total
+    grand_total -= tds_amount
+    grand_total += tcs_amount
+    grand_total += adjustment
+    grand_total += round_off
+
     # Create invoice record
     inv_query = """
         INSERT INTO invoices (
@@ -244,6 +250,12 @@ def update_invoice(invoice_id, data):
             "amount": line_total
         })
 
+    # Apply adjustments to grand_total
+    grand_total -= data.get('tds_amount', 0.0)
+    grand_total += data.get('tcs_amount', 0.0)
+    grand_total += data.get('adjustment', 0.0)
+    grand_total += data.get('round_off', 0.0)
+
     # Update Query
     inv_query = """
         UPDATE invoices SET
@@ -364,6 +376,12 @@ def create_bill(data):
         # Prepare stock addition
         stock_additions.append((item_id, qty, rate))
 
+    # Apply adjustments to grand_total
+    grand_total -= discount_amount
+    grand_total -= tds_amount
+    grand_total += tcs_amount
+    grand_total += adjustment
+
     # Create bill record
     bill_query = """
         INSERT INTO bills (
@@ -469,6 +487,12 @@ def update_bill(bill_id, data):
             "gst_percent": gst_percent,
             "amount": line_total
         })
+
+    # Apply adjustments to grand_total
+    grand_total -= data.get('discount_amount', 0.0)
+    grand_total -= data.get('tds_amount', 0.0)
+    grand_total += data.get('tcs_amount', 0.0)
+    grand_total += data.get('adjustment', 0.0)
 
     # Update Query
     bill_query = """
