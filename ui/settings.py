@@ -2,7 +2,7 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, 
     QLineEdit, QFormLayout, QMessageBox, QFileDialog, QTabWidget,
     QTableWidget, QTableWidgetItem, QHeaderView, QComboBox, QDialog,
-    QDialogButtonBox
+    QDialogButtonBox, QGroupBox
 )
 from PySide6.QtCore import Qt
 from database.db import execute_read_query, execute_write_query
@@ -12,6 +12,8 @@ import shutil
 import datetime
 import os
 import json
+
+from PySide6.QtGui import QPixmap
 
 class SettingsPage(QWidget):
     def __init__(self):
@@ -67,6 +69,9 @@ class SettingsPage(QWidget):
         self.logo_path = ""
         self.logo_label = QLabel("No Logo Selected")
         self.logo_label.setStyleSheet("border: 1px solid #ccc; padding: 5px;")
+        self.logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.logo_label.setFixedSize(150, 80) # Fixed size for preview area
+        
         self.logo_btn = QPushButton("Upload Logo")
         self.logo_btn.clicked.connect(self.upload_logo)
         
@@ -158,13 +163,150 @@ class SettingsPage(QWidget):
     def init_database_tab(self):
         layout = QVBoxLayout()
         
-        backup_btn = QPushButton("Backup Database")
+        # Backup / Restore
+        backup_group = QGroupBox("Backup & Restore")
+        backup_layout = QVBoxLayout()
+        
+        backup_btn = QPushButton("Backup Database (Export)")
         backup_btn.clicked.connect(self.backup_db)
         
-        layout.addWidget(QLabel("Database Management"))
-        layout.addWidget(backup_btn)
+        import_btn = QPushButton("Import Database (Restore)")
+        import_btn.setStyleSheet("background-color: #F59E0B; color: white;")
+        import_btn.clicked.connect(self.import_db)
+        
+        backup_layout.addWidget(backup_btn)
+        backup_layout.addWidget(import_btn)
+        backup_group.setLayout(backup_layout)
+        layout.addWidget(backup_group)
+        
+        # Danger Zone
+        danger_group = QGroupBox("Danger Zone")
+        danger_layout = QVBoxLayout()
+        
+        clear_inv_btn = QPushButton("Clear All Invoices")
+        clear_inv_btn.setStyleSheet("color: red;")
+        clear_inv_btn.clicked.connect(self.clear_invoices)
+        
+        clear_bill_btn = QPushButton("Clear All Bills (Purchases)")
+        clear_bill_btn.setStyleSheet("color: red;")
+        clear_bill_btn.clicked.connect(self.clear_bills)
+        
+        clear_pay_btn = QPushButton("Clear All Payments")
+        clear_pay_btn.setStyleSheet("color: red;")
+        clear_pay_btn.clicked.connect(self.clear_payments)
+        
+        reset_btn = QPushButton("Reset Entire Database")
+        reset_btn.setStyleSheet("background-color: #EF4444; color: white; font-weight: bold; padding: 10px;")
+        reset_btn.clicked.connect(self.reset_db)
+        
+        danger_layout.addWidget(clear_inv_btn)
+        danger_layout.addWidget(clear_bill_btn)
+        danger_layout.addWidget(clear_pay_btn)
+        danger_layout.addWidget(reset_btn)
+        danger_group.setLayout(danger_layout)
+        layout.addWidget(danger_group)
+        
         layout.addStretch()
         self.database_tab.setLayout(layout)
+
+    def import_db(self):
+        from database.db import DB_NAME
+        
+        confirm = QMessageBox.question(
+            self, "Confirm Restore", 
+            "Restoring a database will OVERWRITE the current database. All current data will be lost. Are you sure?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        if confirm != QMessageBox.StandardButton.Yes:
+            return
+
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select Backup File", "", "SQLite Database (*.db);;All Files (*)")
+        if file_path:
+            try:
+                # Close current connection if possible? 
+                # SQLite usually allows overwriting if no active transaction lock.
+                # But safer to just copy.
+                shutil.copy(file_path, DB_NAME)
+                QMessageBox.information(self, "Success", "Database restored successfully. Please restart the application.")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to restore database: {str(e)}")
+
+    def clear_invoices(self):
+        confirm = QMessageBox.question(self, "Confirm", "Delete ALL Invoices? This cannot be undone.\n\nWARNING: Stock quantities will NOT be restored. Use this only if you want to clear sales history but keep current stock levels, or if you plan to reset stock separately.", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if confirm == QMessageBox.StandardButton.Yes:
+            try:
+                execute_write_query("DELETE FROM invoice_items")
+                execute_write_query("DELETE FROM invoices")
+                # Also need to clear invoice_id from payments or delete those payments?
+                # Ideally we should delete payments associated with invoices.
+                execute_write_query("DELETE FROM payments WHERE invoice_id IS NOT NULL")
+                QMessageBox.information(self, "Success", "All invoices and related payments deleted.")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", str(e))
+
+    def clear_bills(self):
+        confirm = QMessageBox.question(self, "Confirm", "Delete ALL Bills? This cannot be undone.\n\nWARNING: Stock quantities will NOT be reduced. You will retain stock added by these bills.", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if confirm == QMessageBox.StandardButton.Yes:
+            try:
+                execute_write_query("DELETE FROM bill_items")
+                execute_write_query("DELETE FROM bills")
+                # Delete payments associated with bills
+                execute_write_query("DELETE FROM payments WHERE bill_id IS NOT NULL")
+                QMessageBox.information(self, "Success", "All bills and related payments deleted.")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", str(e))
+
+    def clear_payments(self):
+        confirm = QMessageBox.question(self, "Confirm", "Delete ALL Payments? This cannot be undone.", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if confirm == QMessageBox.StandardButton.Yes:
+            try:
+                execute_write_query("DELETE FROM payments")
+                # Reset invoice/bill statuses?
+                # Yes, if payments are gone, invoices are likely Due/Sent.
+                execute_write_query("UPDATE invoices SET status = 'Sent' WHERE status = 'Paid'")
+                execute_write_query("UPDATE bills SET status = 'Sent' WHERE status = 'Paid'")
+                QMessageBox.information(self, "Success", "All payments deleted. Invoice/Bill statuses updated.")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", str(e))
+
+
+    def backup_db(self):
+        from database.db import DB_NAME
+        if not os.path.exists(DB_NAME):
+            QMessageBox.warning(self, "Error", "Database file not found.")
+            return
+            
+        file_path, _ = QFileDialog.getSaveFileName(self, "Save Backup", f"backup_{datetime.date.today()}.db", "SQLite Database (*.db)")
+        if file_path:
+            try:
+                shutil.copy(DB_NAME, file_path)
+                QMessageBox.information(self, "Success", "Backup created successfully.")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to backup database: {str(e)}")
+
+    def reset_db(self):
+        confirm = QMessageBox.question(
+            self, "DANGER: Reset Database", 
+            "Are you sure you want to RESET the database? This will delete ALL data (Invoices, Bills, Payments, Customers, etc.) permanently. This action cannot be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        if confirm == QMessageBox.StandardButton.Yes:
+            # Confirm again
+            confirm2 = QMessageBox.question(
+                self, "Confirm Reset", 
+                "Really? All data will be lost.",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            if confirm2 == QMessageBox.StandardButton.Yes:
+                from database.db import DB_NAME, init_db
+                try:
+                    if os.path.exists(DB_NAME):
+                        os.remove(DB_NAME)
+                    
+                    init_db()
+                    QMessageBox.information(self, "Success", "Database has been reset. Please restart the application.")
+                except Exception as e:
+                    QMessageBox.critical(self, "Error", f"Failed to reset database: {str(e)}")
 
     def load_settings(self):
         settings = execute_read_query("SELECT key, value FROM settings")
@@ -184,8 +326,13 @@ class SettingsPage(QWidget):
         logo = self.settings_data.get('company_logo', '')
         if logo and os.path.exists(logo):
             self.logo_path = logo
-            self.logo_label.setText(f"Logo selected: {os.path.basename(logo)}")
+            # Show Preview
+            pix = QPixmap(logo).scaled(140, 70, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            self.logo_label.setPixmap(pix)
+            self.logo_label.setText("") # Clear text
         else:
+            self.logo_label.setText("No Logo Selected")
+            self.logo_label.clear()
             self.logo_label.setText("No Logo Selected")
             
         # Custom Fields
@@ -204,7 +351,12 @@ class SettingsPage(QWidget):
             try:
                 shutil.copy(file_path, dest_path)
                 self.logo_path = dest_path
-                self.logo_label.setText(f"Logo selected: {filename}")
+                
+                # Show Preview
+                pix = QPixmap(dest_path).scaled(140, 70, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                self.logo_label.setPixmap(pix)
+                self.logo_label.setText("")
+                
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to upload logo: {str(e)}")
 

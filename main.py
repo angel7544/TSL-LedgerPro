@@ -63,11 +63,15 @@ class AppController:
             self.show_login()
 
     def show_login(self):
-        self.splash.close()
         self.login_window = LoginWindow()
         self.login_window.login_successful.connect(self.show_main_window)
         self.login_window.switch_to_signup.connect(self.show_signup)
         self.login_window.show()
+        self.login_window.activateWindow()
+        self.login_window.raise_()
+        
+        # Close splash after showing login to prevent minimization
+        QTimer.singleShot(100, self.splash.close)
 
     def show_signup(self):
         if self.login_window:

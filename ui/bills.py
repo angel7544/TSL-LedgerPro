@@ -9,7 +9,7 @@ from PySide6.QtGui import QDesktopServices
 import os
 import json
 from database.db import execute_read_query, execute_write_query
-from modules.invoice import create_bill, update_bill
+from modules.invoice import create_bill, update_bill, delete_bill
 from modules.payment import get_unpaid_bills, save_bill_payment, generate_payment_number, get_vendor_credits
 from pdf.generator import generate_bill_pdf
 import datetime
@@ -86,7 +86,56 @@ class BillsPage(QWidget):
             edit_btn.clicked.connect(lambda checked, r=row['id']: self.edit_bill(r))
             btn_layout.addWidget(edit_btn)
             
+            if row['status'] == 'Draft':
+                mark_btn = QPushButton("Mark Due")
+                mark_btn.setStyleSheet("background-color: #F59E0B; color: white;")
+                mark_btn.clicked.connect(lambda checked, r=row['id']: self.mark_as_due(r))
+                btn_layout.addWidget(mark_btn)
+            
+            del_btn = QPushButton("Delete")
+            del_btn.setStyleSheet("color: white; background-color: #EF4444;")
+            del_btn.clicked.connect(lambda checked, r=row['id']: self.delete_bill_ui(r))
+            btn_layout.addWidget(del_btn)
+            
             self.table.setCellWidget(row_idx, 5, btn_widget)
+
+    def delete_bill_ui(self, bill_id):
+        confirm = QMessageBox.question(
+            self, "Confirm Delete", 
+            "Are you sure you want to delete this bill? This will reduce stock quantities.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        if confirm == QMessageBox.StandardButton.Yes:
+            try:
+                delete_bill(bill_id)
+                self.refresh_data()
+                QMessageBox.information(self, "Success", "Bill deleted successfully.")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to delete bill: {str(e)}")
+
+    def mark_as_due(self, bill_id):
+        # Check if grand_total is valid (> 0)
+        bill_check = execute_read_query("SELECT grand_total FROM bills WHERE id = ?", (bill_id,))
+        if not bill_check:
+            return
+            
+        grand_total = bill_check[0]['grand_total']
+        if not grand_total or grand_total <= 0:
+            QMessageBox.warning(self, "Validation Error", "Cannot mark as Due: Bill amount is 0. Please add items to the bill first.")
+            return
+
+        confirm = QMessageBox.question(
+            self, "Confirm", 
+            "Are you sure you want to mark this bill as Due? This will finalize the draft.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        if confirm == QMessageBox.StandardButton.Yes:
+            try:
+                execute_write_query("UPDATE bills SET status = 'Sent' WHERE id = ?", (bill_id,))
+                self.refresh_data()
+                QMessageBox.information(self, "Success", "Bill marked as Due (Sent).")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to update bill status: {str(e)}")
 
     def edit_bill(self, bill_id):
         # Fetch full details
@@ -373,9 +422,14 @@ class RecordBillPaymentDialog(QDialog):
             return
         
         paid = self.amount_paid_spin.value()
+        
+        use_credits = self.chk_use_credits.isChecked()
+        credits_available = self.current_credits if use_credits and hasattr(self, 'current_credits') else 0.0
+
         if paid <= 0:
-            QMessageBox.warning(self, "Error", "Amount paid must be greater than 0.")
-            return
+            if not use_credits or credits_available <= 0:
+                QMessageBox.warning(self, "Error", "Amount paid must be greater than 0, or use available credits.")
+                return
         
         allocations = []
         total_allocated = 0.0
@@ -387,8 +441,9 @@ class RecordBillPaymentDialog(QDialog):
                 allocations.append({'bill_id': bill_id, 'amount': amount})
                 total_allocated += amount
         
-        if total_allocated > paid:
-            QMessageBox.warning(self, "Error", "Total allocated amount cannot exceed amount paid.")
+        total_available = paid + credits_available
+        if total_allocated > total_available:
+            QMessageBox.warning(self, "Error", "Total allocated amount cannot exceed amount paid + credits.")
             return
         
         # Allow saving if there is an excess amount (credit), even if no allocations

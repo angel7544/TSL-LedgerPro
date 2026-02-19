@@ -37,7 +37,7 @@ class AboutWidget(QWidget):
         app_name.setStyleSheet("font-size: 28px; font-weight: bold; color: #2563EB;")
         left_layout.addWidget(app_name)
         
-        version_lbl = QLabel("Version 2.5.6 | Updated on: 2026-02-18")
+        version_lbl = QLabel("Version 2.6.0 | Updated on: 2026-02-19")
         version_lbl.setStyleSheet("font-size: 14px; color: #64748B; margin-bottom: 10px;")
         left_layout.addWidget(version_lbl)
         
@@ -70,11 +70,13 @@ class AboutWidget(QWidget):
             "<h3>Key Features:</h3>"
             "<ul>"
             "<li><b>Dashboard:</b> Real-time overview of Sales, Purchases, and Receivables with visual charts.</li>"
-            "<li><b>Invoicing & Billing:</b> Create professional GST-compliant B2B/B2C invoices with automatic tax calculations. Manage customer credits and advance payments.</li>"
-            "<li><b>Inventory Management:</b> FIFO-based stock valuation, real-time tracking with low-stock alerts, and HSN/SAC support.</li>"
-            "<li><b>Financial Management:</b> Track Accounts Receivable (AR) & Payable (AP), record payments with partial allocations, and monitor expenses.</li>"
+            "<li><b>Invoicing & Billing:</b> Create professional GST-compliant B2B/B2C invoices. Features include automatic tax calculations, stock deduction, PDF generation, and <b>Delete</b> functionality (which restores stock).</li>"
+            "<li><b>Purchases & Bills:</b> Manage vendor bills with <b>FIFO-based stock valuation</b>. Mark bills as 'Sent' or 'Paid', and delete bills to automatically reverse stock additions.</li>"
+            "<li><b>Inventory Management:</b> Real-time stock tracking using FIFO method. Stock is automatically adjusted when Invoices or Bills are created, updated, or deleted.</li>"
+            "<li><b>Payments & Credits:</b> Record partial payments, track balances, and manage <b>Customer/Vendor Credits</b>. Deleting a payment automatically updates the Invoice/Bill status.</li>"
+            "<li><b>Financial Management:</b> Track Accounts Receivable (AR) & Payable (AP), monitor expenses, and handle advance payments.</li>"
             "<li><b>Reports & Analytics:</b> Generate detailed Sales/Purchase registers, GST Summaries, Stock Valuation, and Aging reports.</li>"
-            "<li><b>Security & Data:</b> Secure local SQLite database with user authentication and backup/restore tools.</li>"
+            "<li><b>Data Management:</b> Secure local SQLite database. Includes <b>Backup (Export)</b>, <b>Restore (Import)</b>, and <b>Database Reset</b> options in Settings.</li>"
             "</ul>"
             
             "<h3>Technical Stack:</h3>"
@@ -111,23 +113,31 @@ class AboutWidget(QWidget):
         <h3>Frequently Asked Questions</h3>
         
         <p><b>Q: How do I create a new invoice?</b><br>
-        A: Go to the <b>Invoices</b> tab and click the <b>+ Create Invoice</b> button. Select a customer, add items, and save.</p>
+        A: Go to the <b>Invoices</b> tab and click the <b>+ Create Invoice</b> button. Select a customer, add items, and save. This will automatically deduct stock.</p>
         
+        <p><b>Q: What happens when I delete an Invoice or Bill?</b><br>
+        A: <b>Deleting an Invoice</b> restores the stock quantity for the items. <b>Deleting a Bill</b> reduces the stock quantity (FIFO). <br>
+        <i>Note: You cannot delete an invoice or bill if it has recorded payments. Please delete the payments first.</i></p>
+
         <p><b>Q: How is stock calculated?</b><br>
         A: Stock is tracked using the <b>FIFO (First-In-First-Out)</b> method. When you sell an item, the cost is calculated based on the oldest available stock batch.</p>
         
         <p><b>Q: Can I record partial payments?</b><br>
-        A: Yes! In the <b>Payments</b> tab, click <b>Record Payment</b>. Enter the amount received, and the system will automatically allocate it to the oldest unpaid invoices. You can also manually adjust the allocation.</p>
+        A: Yes! In the <b>Payments</b> tab (or via Invoices/Bills page), click <b>Record Payment</b>. Enter the amount received, and the system will automatically allocate it to the oldest unpaid invoices. You can also manually adjust the allocation.</p>
         
         <p><b>Q: How do I handle customer credits/advances?</b><br>
         A: If a customer pays more than the invoice amount, the excess is stored as <b>Credits</b>. You can view available credits in the <b>Customers</b> list. These credits can be applied to future invoices.</p>
         
-        <p><b>Q: How do I export reports?</b><br>
-        A: Navigate to the <b>Reports</b> tab. Select the report type (e.g., Sales Register, GST Summary), choose a date range, and click <b>Generate PDF</b> or <b>Export CSV</b>.</p>
+        <p><b>Q: Why don't I see my Bill in the 'Record Payment' screen?</b><br>
+        A: Ensure the Bill status is <b>'Sent'</b> (not 'Draft'). Draft bills must be marked as 'Due' or 'Sent' before payment can be recorded. Also, ensure you have selected the correct Vendor.</p>
+
+        <p><b>Q: How do I backup or restore my data?</b><br>
+        A: Go to <b>Settings > Database</b>. Use <b>Backup Database (Export)</b> to save your data to a secure location. Use <b>Import Database (Restore)</b> to load a backup file. <br>
+        <i>Warning: Restoring will overwrite your current data.</i></p>
         
-        <p><b>Q: Where is my data stored?</b><br>
-        A: All data is stored securely in a local <b>SQLite database</b> file on your computer. We recommend regularly backing up this file using the <b>Settings</b> > <b>Backup</b> option.</p>
-        
+        <p><b>Q: Can I reset the application data?</b><br>
+        A: Yes. In <b>Settings > Database > Danger Zone</b>, you can choose to clear only Invoices, Bills, or Payments, or <b>Reset Entire Database</b> to start fresh. This action is irreversible.</p>
+
         <p><b>Q: How do I update my company logo?</b><br>
         A: Go to <b>Settings</b> and look for the <b>Company Logo</b> section. Upload a new image to reflect it on all invoices and reports.</p>
         

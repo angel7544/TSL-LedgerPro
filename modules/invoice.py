@@ -529,3 +529,57 @@ def update_bill(bill_id, data):
         execute_transaction(item_queries)
         
     return bill_id
+
+def delete_invoice(invoice_id):
+    """
+    Deletes an invoice and reverses stock changes.
+    Returns True if successful, raises Exception if failed.
+    """
+    # 1. Check for payments
+    payments = execute_read_query("SELECT id FROM payments WHERE invoice_id = ?", (invoice_id,))
+    if payments:
+        raise Exception("Cannot delete invoice with recorded payments. Please delete payments first.")
+        
+    # 2. Get items to restore stock
+    items = execute_read_query("SELECT item_id, quantity FROM invoice_items WHERE invoice_id = ?", (invoice_id,))
+    
+    queries = []
+    
+    # Reverse Stock: Add back the quantity
+    for item in items:
+        # We need a rate for the batch. Let's look up the item's current purchase price.
+        item_def = execute_read_query("SELECT purchase_price FROM items WHERE id = ?", (item['item_id'],))
+        rate = item_def[0]['purchase_price'] if item_def else 0.0
+        
+        add_stock(item['item_id'], item['quantity'], rate, datetime.date.today().strftime("%Y-%m-%d"), None)
+        
+    # 4. Delete Records
+    queries.append(("DELETE FROM invoice_items WHERE invoice_id = ?", (invoice_id,)))
+    queries.append(("DELETE FROM invoices WHERE id = ?", (invoice_id,)))
+    
+    execute_transaction(queries)
+    return True
+
+def delete_bill(bill_id):
+    """
+    Deletes a bill and reverses stock changes (reduces stock).
+    """
+    # 1. Check for payments
+    payments = execute_read_query("SELECT id FROM payments WHERE bill_id = ?", (bill_id,))
+    if payments:
+        raise Exception("Cannot delete bill with recorded payments. Please delete payments first.")
+        
+    # 2. Get items to reduce stock
+    items = execute_read_query("SELECT item_id, quantity FROM bill_items WHERE bill_id = ?", (bill_id,))
+    
+    # 3. Reduce stock (as we are cancelling a purchase)
+    for item in items:
+        reduce_stock_fifo(item['item_id'], item['quantity'])
+        
+    # 4. Delete Records
+    queries = []
+    queries.append(("DELETE FROM bill_items WHERE bill_id = ?", (bill_id,)))
+    queries.append(("DELETE FROM bills WHERE id = ?", (bill_id,)))
+    
+    execute_transaction(queries)
+    return True

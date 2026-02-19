@@ -6,11 +6,12 @@ def get_unpaid_invoices(customer_id):
     """
     Returns a list of unpaid or partially paid invoices for a customer.
     Calculates the balance due for each invoice.
+    Excludes Draft and Paid invoices.
     """
     query = """
-        SELECT i.id, i.invoice_number, i.date, i.due_date, i.grand_total, i.status
+        SELECT i.id, i.invoice_number, i.date, i.due_date, IFNULL(i.grand_total, 0) as grand_total, i.status
         FROM invoices i
-        WHERE i.customer_id = ? AND i.status != 'Paid'
+        WHERE i.customer_id = ? AND i.status NOT IN ('Paid', 'Draft', 'Cancelled')
         ORDER BY i.date ASC
     """
     invoices = execute_read_query(query, (customer_id,))
@@ -23,6 +24,9 @@ def get_unpaid_invoices(customer_id):
         
         balance_due = inv['grand_total'] - amount_paid
         
+        # Show even if balance is 0 but status is not Paid? 
+        # No, if balance is 0, it should be paid. 
+        # But allow small float tolerance.
         if balance_due > 0.01:
             inv_data = dict(inv)
             inv_data['amount_paid'] = amount_paid
@@ -35,11 +39,12 @@ def get_unpaid_bills(vendor_id):
     """
     Returns a list of unpaid or partially paid bills for a vendor.
     Calculates the balance due for each bill.
+    Excludes Draft and Paid bills.
     """
     query = """
-        SELECT b.id, b.bill_number, b.date, b.due_date, b.grand_total, b.status
+        SELECT b.id, b.bill_number, b.date, b.due_date, IFNULL(b.grand_total, 0) as grand_total, b.status
         FROM bills b
-        WHERE b.vendor_id = ? AND b.status != 'Paid'
+        WHERE b.vendor_id = ? AND b.status NOT IN ('Paid', 'Draft', 'Cancelled')
         ORDER BY b.date ASC
     """
     bills = execute_read_query(query, (vendor_id,))

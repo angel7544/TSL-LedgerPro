@@ -7,7 +7,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QDate, QUrl
 from PySide6.QtGui import QDesktopServices
 from database.db import execute_read_query, execute_write_query
-from modules.invoice import create_invoice, update_invoice
+from modules.invoice import create_invoice, update_invoice, delete_invoice
 from pdf.generator import generate_invoice_pdf
 from ui.payments import RecordPaymentDialog
 import datetime
@@ -81,7 +81,26 @@ class InvoicesPage(QWidget):
             edit_btn.clicked.connect(lambda checked, r=row['id']: self.edit_invoice(r))
             btn_layout.addWidget(edit_btn)
             
+            del_btn = QPushButton("Delete")
+            del_btn.setStyleSheet("color: white; background-color: #EF4444;")
+            del_btn.clicked.connect(lambda checked, r=row['id']: self.delete_invoice_ui(r))
+            btn_layout.addWidget(del_btn)
+            
             self.table.setCellWidget(row_idx, 5, btn_widget)
+
+    def delete_invoice_ui(self, invoice_id):
+        confirm = QMessageBox.question(
+            self, "Confirm Delete", 
+            "Are you sure you want to delete this invoice? This will restore stock quantities.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        if confirm == QMessageBox.StandardButton.Yes:
+            try:
+                delete_invoice(invoice_id)
+                self.refresh_data()
+                QMessageBox.information(self, "Success", "Invoice deleted successfully.")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to delete invoice: {str(e)}")
 
     def edit_invoice(self, invoice_id):
         # Fetch full details
