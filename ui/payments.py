@@ -258,7 +258,10 @@ class EditPaymentDialog(QDialog):
         
         self.date_edit = QDateEdit()
         self.date_edit.setCalendarPopup(True)
-        self.date_edit.setDate(QDate.fromString(self.data['date'], "yyyy-MM-dd"))
+        date_val = self.data['date']
+        if isinstance(date_val, datetime.date):
+            date_val = date_val.strftime("%Y-%m-%d")
+        self.date_edit.setDate(QDate.fromString(str(date_val), "yyyy-MM-dd"))
         layout.addRow("Date:", self.date_edit)
         
         self.method_combo = QComboBox()
@@ -386,8 +389,12 @@ class ViewPaymentDialog(QDialog):
         party_name = main_row['customer_name'] if main_row['customer_id'] else main_row['vendor_name']
         party_type = "Customer" if main_row['customer_id'] else "Vendor"
         
+        date_val = main_row['date']
+        if isinstance(date_val, datetime.date):
+            date_val = date_val.strftime("%Y-%m-%d")
+            
         form_layout.addRow("Payment #:", QLabel(main_row['payment_number']))
-        form_layout.addRow("Date:", QLabel(main_row['date']))
+        form_layout.addRow("Date:", QLabel(str(date_val)))
         form_layout.addRow("Party:", QLabel(f"{party_name} ({party_type})"))
         form_layout.addRow("Total Amount:", QLabel(f"₹{total_amount:.2f}"))
         form_layout.addRow("Method:", QLabel(main_row['method']))
