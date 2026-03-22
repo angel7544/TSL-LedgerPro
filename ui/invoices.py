@@ -633,6 +633,33 @@ class CreateInvoiceDialog(QDialog):
                 idx_added = combo.count() - 1
                 combo.setItemData(idx_added, Qt.red, Qt.ForegroundRole)
         
+        # Rate Type Combo
+        rate_type_combo = QComboBox()
+        settings_rows = execute_read_query("SELECT `key`, value FROM settings WHERE `key` IN ('sp1_name', 'sp2_name', 'sp3_name')")
+        settings_dict = {row['key']: row['value'] for row in settings_rows}
+        sp1 = settings_dict.get('sp1_name', 'Type 1')
+        sp2 = settings_dict.get('sp2_name', 'Type 2')
+        sp3 = settings_dict.get('sp3_name', 'Type 3')
+        
+        rate_type_combo.addItem("Default", "selling_price")
+        rate_type_combo.addItem(f"SP1 ({sp1})", "sp1")
+        rate_type_combo.addItem(f"SP2 ({sp2})", "sp2")
+        rate_type_combo.addItem(f"SP3 ({sp3})", "sp3")
+        
+        # Set default to Customer's Type if possible
+        cust_data = self.customer_combo.currentData()
+        c_type = cust_data.get('customer_type', 'Type 1') if cust_data else 'Default'
+        if c_type == 'Type 1' or c_type == sp1:
+            rate_type_combo.setCurrentIndex(1)
+        elif c_type == 'Type 2' or c_type == sp2:
+            rate_type_combo.setCurrentIndex(2)
+        elif c_type == 'Type 3' or c_type == sp3:
+            rate_type_combo.setCurrentIndex(3)
+        else:
+            rate_type_combo.setCurrentIndex(0)
+ 
+        rate_type_combo.currentIndexChanged.connect(self.on_rate_type_changed)
+
         # Default values
         if item_data:
             # Find item in combo
@@ -671,33 +698,6 @@ class CreateInvoiceDialog(QDialog):
             disc_val = "0"
 
         combo.currentIndexChanged.connect(self.on_item_changed)
-        
-        # Rate Type Combo
-        rate_type_combo = QComboBox()
-        settings_rows = execute_read_query("SELECT `key`, value FROM settings WHERE `key` IN ('sp1_name', 'sp2_name', 'sp3_name')")
-        settings_dict = {row['key']: row['value'] for row in settings_rows}
-        sp1 = settings_dict.get('sp1_name', 'Type 1')
-        sp2 = settings_dict.get('sp2_name', 'Type 2')
-        sp3 = settings_dict.get('sp3_name', 'Type 3')
-        
-        rate_type_combo.addItem("Default", "selling_price")
-        rate_type_combo.addItem(f"SP1 ({sp1})", "sp1")
-        rate_type_combo.addItem(f"SP2 ({sp2})", "sp2")
-        rate_type_combo.addItem(f"SP3 ({sp3})", "sp3")
-        
-        # Set default to Customer's Type if possible
-        cust_data = self.customer_combo.currentData()
-        c_type = cust_data.get('customer_type', 'Type 1') if cust_data else 'Default'
-        if c_type == 'Type 1' or c_type == sp1:
-            rate_type_combo.setCurrentIndex(1)
-        elif c_type == 'Type 2' or c_type == sp2:
-            rate_type_combo.setCurrentIndex(2)
-        elif c_type == 'Type 3' or c_type == sp3:
-            rate_type_combo.setCurrentIndex(3)
-        else:
-            rate_type_combo.setCurrentIndex(0)
-            
-        rate_type_combo.currentIndexChanged.connect(self.on_rate_type_changed)
         
         qty = QLineEdit(qty_val)
         rate_edit = QLineEdit(rate)
