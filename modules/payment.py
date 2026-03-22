@@ -252,6 +252,7 @@ def save_payment(data):
     Saves a payment against invoices and updates invoice statuses.
     Handles unallocated amounts as credits (invoice_id=NULL).
     """
+    
     # Extract allocations from data
     allocations = data.get('allocations', [])
     customer_id = data.get('customer_id')
