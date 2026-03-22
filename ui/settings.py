@@ -163,8 +163,19 @@ class SettingsPage(QWidget):
     def init_database_tab(self):
         layout = QVBoxLayout()
         
+        # Connection Settings
+        connection_group = QGroupBox("Database Connection")
+        connection_layout = QVBoxLayout()
+        
+        db_config_btn = QPushButton("Configure MySQL / SQLite Backend")
+        db_config_btn.clicked.connect(self.open_db_config)
+        
+        connection_layout.addWidget(db_config_btn)
+        connection_group.setLayout(connection_layout)
+        layout.addWidget(connection_group)
+        
         # Backup / Restore
-        backup_group = QGroupBox("Backup & Restore")
+        backup_group = QGroupBox("Backup & Restore (SQLite Only)")
         backup_layout = QVBoxLayout()
         
         backup_btn = QPushButton("Backup Database (Export)")
@@ -209,9 +220,18 @@ class SettingsPage(QWidget):
         layout.addStretch()
         self.database_tab.setLayout(layout)
 
+    def open_db_config(self):
+        from ui.db_config_dialog import DBConfigDialog
+        dialog = DBConfigDialog(self)
+        dialog.exec()
+
     def import_db(self):
-        from database.db import DB_NAME
+        from database.db import DB_NAME, is_mysql
         
+        if is_mysql():
+            QMessageBox.warning(self, "Warning", "Restore is only supported for SQLite databases.")
+            return
+            
         confirm = QMessageBox.question(
             self, "Confirm Restore", 
             "Restoring a database will OVERWRITE the current database. All current data will be lost. Are you sure?",
@@ -271,7 +291,12 @@ class SettingsPage(QWidget):
 
 
     def backup_db(self):
-        from database.db import DB_NAME
+        from database.db import DB_NAME, is_mysql
+        
+        if is_mysql():
+            QMessageBox.warning(self, "Warning", "Backup is only supported for SQLite databases. Please use MySQL Workbench or mysqldump to backup your MySQL database.")
+            return
+
         if not os.path.exists(DB_NAME):
             QMessageBox.warning(self, "Error", "Database file not found.")
             return
@@ -309,7 +334,7 @@ class SettingsPage(QWidget):
                     QMessageBox.critical(self, "Error", f"Failed to reset database: {str(e)}")
 
     def load_settings(self):
-        settings = execute_read_query("SELECT key, value FROM settings")
+        settings = execute_read_query("SELECT `key`, value FROM settings")
         self.settings_data = {row['key']: row['value'] for row in settings}
         
         # Profile

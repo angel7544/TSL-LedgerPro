@@ -47,8 +47,8 @@ class PaymentsPage(QWidget):
         # Query for Customer Payments
         # Include payments with invoice_id IS NULL (Credits)
         query_cust = """
-            SELECT MIN(p.id) as id, p.date, p.payment_number, SUM(p.amount) as amount, p.method, p.reference, MAX(p.notes) as notes,
-                   c.name as party_name, 'Customer' as party_type,
+            SELECT MIN(p.id) as id, MAX(p.date) as date, p.payment_number, SUM(p.amount) as amount, MAX(p.method) as method, MAX(p.reference) as reference, MAX(p.notes) as notes,
+                   MAX(c.name) as party_name, 'Customer' as party_type,
                    GROUP_CONCAT(i.invoice_number, ', ') as invoice_numbers
             FROM payments p
             JOIN customers c ON p.customer_id = c.id
@@ -60,8 +60,8 @@ class PaymentsPage(QWidget):
         # Note: This query might miss unallocated vendor payments (credits) because of INNER JOIN on bills
         # But we keep it as is for now to match original behavior, just adding GROUP BY
         query_vend = """
-            SELECT MIN(p.id) as id, p.date, p.payment_number, SUM(p.amount) as amount, p.method, p.reference, MAX(p.notes) as notes,
-                   v.name as party_name, 'Vendor' as party_type,
+            SELECT MIN(p.id) as id, MAX(p.date) as date, p.payment_number, SUM(p.amount) as amount, MAX(p.method) as method, MAX(p.reference) as reference, MAX(p.notes) as notes,
+                   MAX(v.name) as party_name, 'Vendor' as party_type,
                    GROUP_CONCAT(b.bill_number, ', ') as invoice_numbers
             FROM payments p
             JOIN bills b ON p.bill_id = b.id

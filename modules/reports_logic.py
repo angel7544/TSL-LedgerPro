@@ -279,8 +279,8 @@ def get_cash_flow_data(fiscal_year_start):
     # We'll fetch all payments in the range and process in python for simplicity
     payments_query = """
         SELECT strftime('%Y-%m', date) as month, 
-               invoice_id, 
-               bill_id, 
+               MAX(invoice_id) as invoice_id, 
+               MAX(bill_id) as bill_id, 
                SUM(amount) as total
         FROM payments
         WHERE date BETWEEN ? AND ?

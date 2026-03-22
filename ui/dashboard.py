@@ -5,7 +5,7 @@ from PySide6.QtCore import Qt
 from modules.reports_logic import (
     get_sales_report, get_gst_report, get_monthly_sales_data, get_monthly_purchase_data, get_cash_flow_data
 )
-from database.db import execute_read_query
+from database.db import execute_read_query, is_mysql
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import datetime
@@ -505,8 +505,12 @@ class DashboardPage(QWidget):
         
         # Purchases Update
         try:
-             purchase_res = execute_read_query("SELECT SUM(grand_total) FROM bills WHERE date BETWEEN ? AND ?", (start_date, end_date))[0][0]
-             total_purchases = purchase_res if purchase_res is not None else 0.0
+             purchase_query = "SELECT SUM(grand_total) as total FROM bills WHERE date BETWEEN %s AND %s" if is_mysql() else "SELECT SUM(grand_total) as total FROM bills WHERE date BETWEEN ? AND ?"
+             purchase_res = execute_read_query(purchase_query, (start_date, end_date))
+             if is_mysql():
+                 total_purchases = purchase_res[0]['total'] if purchase_res and purchase_res[0]['total'] is not None else 0.0
+             else:
+                 total_purchases = purchase_res[0][0] if purchase_res and purchase_res[0][0] is not None else 0.0
              self.update_card_value(self.purchase_card, f"₹{total_purchases:,.2f}")
         except Exception as e:
              # Table might not exist or other error
@@ -514,14 +518,28 @@ class DashboardPage(QWidget):
 
         # New Metrics
         try:
-            item_count = execute_read_query("SELECT COUNT(*) FROM items")[0][0] or 0
+            item_count_query = "SELECT COUNT(*) as count FROM items"
+            item_count_res = execute_read_query(item_count_query)
+            if is_mysql():
+                item_count = item_count_res[0]['count'] if item_count_res else 0
+            else:
+                item_count = item_count_res[0][0] if item_count_res else 0
             self.update_card_value(self.items_card, str(item_count))
             
-            stock_val_res = execute_read_query("SELECT SUM(quantity_remaining * purchase_rate) FROM stock_batches")[0][0]
-            stock_val = stock_val_res if stock_val_res is not None else 0.0
+            stock_val_query = "SELECT SUM(quantity_remaining * purchase_rate) as total FROM stock_batches"
+            stock_val_res = execute_read_query(stock_val_query)
+            if is_mysql():
+                stock_val = stock_val_res[0]['total'] if stock_val_res and stock_val_res[0]['total'] is not None else 0.0
+            else:
+                stock_val = stock_val_res[0][0] if stock_val_res and stock_val_res[0][0] is not None else 0.0
             self.update_card_value(self.stock_value_card, f"₹{stock_val:,.2f}")
             
-            low_stock = execute_read_query("SELECT COUNT(*) FROM items WHERE track_inventory = 1 AND stock_on_hand <= reorder_point")[0][0] or 0
+            low_stock_query = "SELECT COUNT(*) as count FROM items WHERE track_inventory = 1 AND stock_on_hand <= reorder_point"
+            low_stock_res = execute_read_query(low_stock_query)
+            if is_mysql():
+                low_stock = low_stock_res[0]['count'] if low_stock_res else 0
+            else:
+                low_stock = low_stock_res[0][0] if low_stock_res else 0
             self.update_card_value(self.low_stock_card, str(low_stock))
             
         except Exception as e:

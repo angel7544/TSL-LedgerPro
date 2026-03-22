@@ -750,9 +750,17 @@ class CreateBillDialog(QDialog):
             
         self.bill_number.setText(data.get('bill_number', ''))
         self.order_number.setText(data.get('order_number', ''))
-        self.date_edit.setDate(QDate.fromString(data['date'], "yyyy-MM-dd"))
-        if data.get('due_date'):
-            self.due_date.setDate(QDate.fromString(data['due_date'], "yyyy-MM-dd"))
+        
+        date_val = data['date']
+        if isinstance(date_val, datetime.date):
+            date_val = date_val.strftime("%Y-%m-%d")
+        self.date_edit.setDate(QDate.fromString(str(date_val), "yyyy-MM-dd"))
+        
+        due_date_val = data.get('due_date')
+        if due_date_val:
+            if isinstance(due_date_val, datetime.date):
+                due_date_val = due_date_val.strftime("%Y-%m-%d")
+            self.due_date.setDate(QDate.fromString(str(due_date_val), "yyyy-MM-dd"))
             
         self.payment_terms.setText(data.get('payment_terms', ''))
         self.reverse_charge.setChecked(bool(data.get('reverse_charge', 0)))

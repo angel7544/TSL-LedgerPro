@@ -1,5 +1,5 @@
 
-from database.db import execute_read_query, execute_write_query, execute_transaction
+from database.db import execute_read_query, execute_write_query, execute_transaction, is_mysql
 import datetime
 
 def get_unpaid_invoices(customer_id):
@@ -18,9 +18,13 @@ def get_unpaid_invoices(customer_id):
     
     results = []
     for inv in invoices:
-        paid_query = "SELECT SUM(amount) FROM payments WHERE invoice_id = ?"
+        paid_query = "SELECT SUM(amount) as total_paid FROM payments WHERE invoice_id = %s" if is_mysql() else "SELECT SUM(amount) as total_paid FROM payments WHERE invoice_id = ?"
         paid_res = execute_read_query(paid_query, (inv['id'],))
-        amount_paid = paid_res[0][0] if paid_res and paid_res[0][0] else 0.0
+        
+        if is_mysql():
+            amount_paid = paid_res[0]['total_paid'] if paid_res and paid_res[0]['total_paid'] else 0.0
+        else:
+            amount_paid = paid_res[0][0] if paid_res and paid_res[0][0] else 0.0
         
         balance_due = inv['grand_total'] - amount_paid
         
@@ -51,9 +55,13 @@ def get_unpaid_bills(vendor_id):
     
     results = []
     for bill in bills:
-        paid_query = "SELECT SUM(amount) FROM payments WHERE bill_id = ?"
+        paid_query = "SELECT SUM(amount) as total_paid FROM payments WHERE bill_id = %s" if is_mysql() else "SELECT SUM(amount) as total_paid FROM payments WHERE bill_id = ?"
         paid_res = execute_read_query(paid_query, (bill['id'],))
-        amount_paid = paid_res[0][0] if paid_res and paid_res[0][0] else 0.0
+        
+        if is_mysql():
+            amount_paid = paid_res[0]['total_paid'] if paid_res and paid_res[0]['total_paid'] else 0.0
+        else:
+            amount_paid = paid_res[0][0] if paid_res and paid_res[0][0] else 0.0
         
         balance_due = bill['grand_total'] - amount_paid
         
@@ -67,15 +75,23 @@ def get_unpaid_bills(vendor_id):
 
 def get_customer_credits(customer_id):
     """Returns the total available credits (unallocated payments) for a customer."""
-    query = "SELECT SUM(amount) FROM payments WHERE customer_id = ? AND invoice_id IS NULL"
+    query = "SELECT SUM(amount) as total FROM payments WHERE customer_id = %s AND invoice_id IS NULL" if is_mysql() else "SELECT SUM(amount) as total FROM payments WHERE customer_id = ? AND invoice_id IS NULL"
     res = execute_read_query(query, (customer_id,))
-    return res[0][0] if res and res[0][0] else 0.0
+    
+    if is_mysql():
+        return res[0]['total'] if res and res[0]['total'] else 0.0
+    else:
+        return res[0][0] if res and res[0][0] else 0.0
 
 def get_vendor_credits(vendor_id):
     """Returns the total available credits (unallocated payments) for a vendor."""
-    query = "SELECT SUM(amount) FROM payments WHERE vendor_id = ? AND bill_id IS NULL"
+    query = "SELECT SUM(amount) as total FROM payments WHERE vendor_id = %s AND bill_id IS NULL" if is_mysql() else "SELECT SUM(amount) as total FROM payments WHERE vendor_id = ? AND bill_id IS NULL"
     res = execute_read_query(query, (vendor_id,))
-    return res[0][0] if res and res[0][0] else 0.0
+    
+    if is_mysql():
+        return res[0]['total'] if res and res[0]['total'] else 0.0
+    else:
+        return res[0][0] if res and res[0][0] else 0.0
 
 def consume_customer_credits(customer_id, amount_needed, invoice_id, transaction_queries):
     """
@@ -392,7 +408,10 @@ def save_payment(data):
         ))
             
     if transaction_queries:
-        execute_transaction(transaction_queries)
+        try:
+            execute_transaction(transaction_queries)
+        except Exception as e:
+            raise Exception(f"{e}")
 
 def save_bill_payment(data):
     """
@@ -504,4 +523,7 @@ def save_bill_payment(data):
         ))
             
     if transaction_queries:
-        execute_transaction(transaction_queries)
+        try:
+            execute_transaction(transaction_queries)
+        except Exception as e:
+            raise Exception(f"{e}")

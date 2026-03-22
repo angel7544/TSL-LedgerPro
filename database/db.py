@@ -1,6 +1,23 @@
 import sqlite3
 import os
 import sys
+import re
+try:
+    import pymysql
+    import pymysql.cursors
+except ImportError:
+    pymysql = None
+
+# Import our new config manager
+try:
+    from config_manager import load_config
+except ImportError:
+    # Fallback if run from an unexpected directory
+    sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+    try:
+        from config_manager import load_config
+    except ImportError:
+        def load_config(): return {"database": {"type": "sqlite"}}
 
 def _resolve_paths():
     if getattr(sys, "frozen", False):
@@ -16,15 +33,64 @@ def _resolve_paths():
 
 DB_NAME, SCHEMA_FILE = _resolve_paths()
 
+def get_config():
+    return load_config().get("database", {"type": "sqlite"})
+
+def is_mysql():
+    return get_config().get("type") == "mysql" and pymysql is not None
+
 def get_connection():
-    # Increased timeout to 30 seconds to prevent "database is locked" errors
-    conn = sqlite3.connect(DB_NAME, timeout=30.0)
-    conn.row_factory = sqlite3.Row
-    # Enable WAL mode for better concurrency
-    conn.execute("PRAGMA journal_mode=WAL;")
-    return conn
+    conf = get_config()
+    if is_mysql():
+        conn = pymysql.connect(
+            host=conf.get("host", "localhost"),
+            port=int(conf.get("port", 3306)),
+            user=conf.get("user", "root"),
+            password=conf.get("password", ""),
+            database=conf.get("database", "ledgerpro"),
+            charset='utf8mb4',
+            cursorclass=pymysql.cursors.DictCursor
+        )
+        return conn
+    else:
+        # Increased timeout to 30 seconds to prevent "database is locked" errors
+        conn = sqlite3.connect(DB_NAME, timeout=30.0)
+        conn.row_factory = sqlite3.Row
+        # Enable WAL mode for better concurrency
+        conn.execute("PRAGMA journal_mode=WAL;")
+        return conn
+
+def translate_query(query):
+    if not is_mysql():
+        return query
+        
+    # Replace '?' with '%s' for parameterized queries
+    q = query.replace('?', '%s')
+    
+    # SQLite strftime to MySQL
+    q = re.sub(r"strftime\('%Y-%m',\s*([^)]+)\)", r"DATE_FORMAT(\1, '%%Y-%%m')", q)
+    q = re.sub(r"strftime\('%m',\s*([^)]+)\)", r"MONTH(\1)", q)
+    q = re.sub(r"strftime\('%Y',\s*([^)]+)\)", r"YEAR(\1)", q)
+    
+    # SQLite julianday to MySQL DATEDIFF
+    q = re.sub(r"\(julianday\('now'\)\s*-\s*julianday\(([^)]+)\)\)", r"DATEDIFF(NOW(), \1)", q)
+    q = re.sub(r"julianday\('now'\)\s*-\s*julianday\(([^)]+)\)", r"DATEDIFF(NOW(), \1)", q)
+    
+    # SQLite GROUP_CONCAT to MySQL
+    q = re.sub(r"GROUP_CONCAT\(([^,]+),\s*'([^']+)'\)", r"GROUP_CONCAT(\1 SEPARATOR '\2')", q)
+
+    # Replace reserved word 'key' with backticks if used in SELECT or WHERE clause for settings table
+    # Only replace if it's not already backticked and not part of a larger word
+    q = re.sub(r"(?<!`)(\bkey\b)(?!`)", "`key`", q)
+
+    return q
 
 def init_db():
+    if is_mysql():
+        # Schema creation is handled by mysql_setup.py for MySQL
+        print("Using MySQL backend. Make sure to run mysql_setup.py first if tables don't exist.")
+        return
+
     if not os.path.exists(DB_NAME):
         conn = sqlite3.connect(DB_NAME, timeout=30.0)
         # Enable WAL on creation too
@@ -49,16 +115,17 @@ def init_db():
     run_migrations()
 
 def run_migrations():
-    # Only run migrations if not frozen (development) or if explicitly needed.
-    # When frozen, migrations can be risky if import mechanisms fail.
-    # But we need them for updates. Let's wrap them carefully.
-    
+    if is_mysql():
+        # Migrations are skipped for MySQL. 
+        # MySQL schema should be up to date if created fresh.
+        return
+
     # V1
     try:
         import update_schema
         update_schema.migrate()
     except ImportError:
-        pass # Likely frozen and module not found in standard way, or not bundled
+        pass 
     except Exception as e:
         print(f"Migration v1 failed: {e}")
 
@@ -93,7 +160,7 @@ def execute_read_query(query, params=()):
     conn = get_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute(query, params)
+        cursor.execute(translate_query(query), params)
         result = cursor.fetchall()
         return result
     finally:
@@ -103,7 +170,7 @@ def execute_write_query(query, params=()):
     conn = get_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute(query, params)
+        cursor.execute(translate_query(query), params)
         conn.commit()
         last_row_id = cursor.lastrowid
         return last_row_id
@@ -114,15 +181,11 @@ def execute_write_query(query, params=()):
         conn.close()
 
 def execute_transaction(operations):
-    """
-    Executes a list of queries in a single transaction.
-    operations: list of (query, params) tuples.
-    """
     conn = get_connection()
     cursor = conn.cursor()
     try:
         for query, params in operations:
-            cursor.execute(query, params)
+            cursor.execute(translate_query(query), params)
         conn.commit()
     except Exception as e:
         conn.rollback()
