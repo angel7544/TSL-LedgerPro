@@ -133,6 +133,8 @@ To create a standalone executable (`.exe`) for Windows:
    ```bash
    pyinstaller LedgerProDesktop.spec
    ```
+
+   python -m PyInstaller LedgerProDesktop.spec
    
    *Alternatively, use the command line:*
    ```bash
