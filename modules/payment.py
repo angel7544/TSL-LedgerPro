@@ -279,14 +279,14 @@ def save_payment(data):
         if "customer_id" in data and customer_id is not None:
             invoice_id = alloc.get('invoice_id')
             query = """
-                INSERT INTO payments (invoice_id, customer_id, amount, date, method, reference, notes, payment_number)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO payments (invoice_id, customer_id, amount, date, method, reference, notes, payment_number, deposit_to, bank_charges, tax_deducted, tax_account, attachment_path, custom_fields)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """ if is_mysql() else """
-                INSERT INTO payments (invoice_id, customer_id, amount, date, method, reference, notes, payment_number)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO payments (invoice_id, customer_id, amount, date, method, reference, notes, payment_number, deposit_to, bank_charges, tax_deducted, tax_account, attachment_path, custom_fields)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
             transaction_queries.append((query, (
-                invoice_id, customer_id, amount, payment_date, method, reference, notes, payment_number
+                invoice_id, customer_id, amount, payment_date, method, reference, notes, payment_number, deposit_to, bank_charges, tax_deducted, tax_account, attachment_path, custom_fields
             )))
             
             # Check and update invoice status if fully paid
@@ -313,14 +313,14 @@ def save_payment(data):
         else:
             bill_id = alloc.get('bill_id')
             query = """
-                INSERT INTO payments (bill_id, vendor_id, amount, date, method, reference, notes, payment_number)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO payments (bill_id, vendor_id, amount, date, method, reference, notes, payment_number, deposit_to, bank_charges, tax_deducted, tax_account, attachment_path, custom_fields)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """ if is_mysql() else """
-                INSERT INTO payments (bill_id, vendor_id, amount, date, method, reference, notes, payment_number)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO payments (bill_id, vendor_id, amount, date, method, reference, notes, payment_number, deposit_to, bank_charges, tax_deducted, tax_account, attachment_path, custom_fields)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
             transaction_queries.append((query, (
-                bill_id, vendor_id, amount, payment_date, method, reference, notes, payment_number
+                bill_id, vendor_id, amount, payment_date, method, reference, notes, payment_number, deposit_to, bank_charges, tax_deducted, tax_account, attachment_path, custom_fields
             )))
             
             # Check and update bill status if fully paid
@@ -344,6 +344,34 @@ def save_payment(data):
                 """
                 transaction_queries.append((update_bill_status_query, (bill_id, amount, bill_id)))
                 
+    # Handle excess or deficit (credit adjustment)
+    total_allocated = sum(alloc['amount'] for alloc in allocations if alloc['amount'] > 0)
+    diff = amount_received - total_allocated
+    
+    if abs(diff) > 0.001:
+        if "customer_id" in data and customer_id is not None:
+            query = """
+                INSERT INTO payments (invoice_id, customer_id, amount, date, method, reference, notes, payment_number, deposit_to, bank_charges, tax_deducted, tax_account, attachment_path, custom_fields)
+                VALUES (NULL, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """ if is_mysql() else """
+                INSERT INTO payments (invoice_id, customer_id, amount, date, method, reference, notes, payment_number, deposit_to, bank_charges, tax_deducted, tax_account, attachment_path, custom_fields)
+                VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """
+            transaction_queries.append((query, (
+                customer_id, diff, payment_date, method, reference, notes, payment_number, deposit_to, bank_charges, tax_deducted, tax_account, attachment_path, custom_fields
+            )))
+        elif "vendor_id" in data and vendor_id is not None:
+            query = """
+                INSERT INTO payments (bill_id, vendor_id, amount, date, method, reference, notes, payment_number, deposit_to, bank_charges, tax_deducted, tax_account, attachment_path, custom_fields)
+                VALUES (NULL, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """ if is_mysql() else """
+                INSERT INTO payments (bill_id, vendor_id, amount, date, method, reference, notes, payment_number, deposit_to, bank_charges, tax_deducted, tax_account, attachment_path, custom_fields)
+                VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """
+            transaction_queries.append((query, (
+                vendor_id, diff, payment_date, method, reference, notes, payment_number, deposit_to, bank_charges, tax_deducted, tax_account, attachment_path, custom_fields
+            )))
+
     if transaction_queries:
         try:
             execute_transaction(transaction_queries)
@@ -379,14 +407,14 @@ def save_bill_payment(data):
             
         bill_id = alloc.get('bill_id')
         query = """
-            INSERT INTO payments (bill_id, vendor_id, amount, date, method, reference, notes, payment_number)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO payments (bill_id, vendor_id, amount, date, method, reference, notes, payment_number, deposit_to, bank_charges, tax_deducted, tax_account, attachment_path, custom_fields)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """ if is_mysql() else """
-            INSERT INTO payments (bill_id, vendor_id, amount, date, method, reference, notes, payment_number)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO payments (bill_id, vendor_id, amount, date, method, reference, notes, payment_number, deposit_to, bank_charges, tax_deducted, tax_account, attachment_path, custom_fields)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         transaction_queries.append((query, (
-            bill_id, vendor_id, amount, payment_date, method, reference, notes, payment_number
+            bill_id, vendor_id, amount, payment_date, method, reference, notes, payment_number, deposit_to, bank_charges, tax_deducted, tax_account, attachment_path, custom_fields
         )))
         
         # Check and update bill status if fully paid
@@ -409,7 +437,23 @@ def save_bill_payment(data):
                 ) >= grand_total - 0.01
             """
             transaction_queries.append((update_bill_status_query, (bill_id, amount, bill_id)))
-            
+                
+    # Handle excess or deficit (credit adjustment)
+    total_allocated = sum(alloc['amount'] for alloc in allocations if alloc['amount'] > 0)
+    diff = amount_paid - total_allocated
+    
+    if abs(diff) > 0.001:
+        query = """
+            INSERT INTO payments (bill_id, vendor_id, amount, date, method, reference, notes, payment_number, deposit_to, bank_charges, tax_deducted, tax_account, attachment_path, custom_fields)
+            VALUES (NULL, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """ if is_mysql() else """
+            INSERT INTO payments (bill_id, vendor_id, amount, date, method, reference, notes, payment_number, deposit_to, bank_charges, tax_deducted, tax_account, attachment_path, custom_fields)
+            VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        transaction_queries.append((query, (
+            vendor_id, diff, payment_date, method, reference, notes, payment_number, deposit_to, bank_charges, tax_deducted, tax_account, attachment_path, custom_fields
+        )))
+
     if transaction_queries:
         try:
             execute_transaction(transaction_queries)
