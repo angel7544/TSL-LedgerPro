@@ -16,11 +16,14 @@
 - **Customizable Templates**: Professional PDF generation with company branding.
 - **Status Tracking**: Track Paid, Unpaid, and Partially Paid invoices.
 - **Credit Management**: Handle customer credits and advance payments seamlessly.
+- **Dynamic Pricing**: Automatic application of different selling prices (SP1, SP2, SP3) based on Customer Type.
 
 ### 📦 Inventory Management
 - **FIFO Valuation**: Accurate stock valuation using First-In-First-Out methodology.
 - **Stock Tracking**: Real-time stock levels with low-stock alerts and reorder points.
 - **Product Management**: Support for Goods and Services, HSN/SAC codes, and multiple units.
+- **Multi-Tier Pricing**: Define multiple selling prices (SP1, SP2, SP3) per item for different customer segments.
+- **Bulk Import/Export**: Robust CSV import/export capabilities mapping to exact database schema (including multi-pricing and stock logic).
 
 ### 💰 Financial Management
 - **Accounts Receivable (AR)**: Track customer outstanding and aging reports.
@@ -38,16 +41,17 @@
 - **Export**: Generate professional PDF reports for all data views.
 
 ### 🔒 Security & Data
-- **Offline Database**: Secure local SQLite database ensures data privacy.
+- **Database Options**: Support for both local offline **SQLite3** and remote **MySQL** databases.
 - **User Authentication**: Built-in login system with session management.
 - **Backup & Restore**: Easy tools to backup and restore financial data.
+- **Seamless Migrations**: Scripts included for migrating from SQLite to MySQL seamlessly.
 
 ---
 
 ## 🛠️ Technology Stack
 - **Language**: Python 3.11+
 - **GUI Framework**: PySide6 (Qt for Python)
-- **Database**: SQLite3
+- **Database**: SQLite3 / MySQL (PyMySQL)
 - **Reporting**: ReportLab (PDF Generation)
 - **Packaging**: PyInstaller
 
@@ -81,10 +85,28 @@
    ```
 
 4. **Initialize the Database**:
-   The application automatically initializes the database on first run. To manually reset or create admin:
+   The application automatically initializes the SQLite database on first run. To manually reset or create admin:
    ```bash
    python create_admin.py
    ```
+   *To use MySQL instead of SQLite, run the setup script:*
+   ```bash
+   python mysql_setup.py
+   ```
+
+---
+
+## 📄 Sample Import Data
+
+You can easily import bulk items into the application using a CSV file. The system automatically handles matching headers for the main data points, including our new multi-pricing features.
+
+**Example CSV Format (`sample_items.csv`):**
+```csv
+Item Name,SKU,HSN/SAC,Description,Unit,Rate,SP1,SP2,SP3,Purchase Rate,GST Rate,Reorder Point,Opening Stock
+Wireless Mouse,WM-01,8471,Ergonomic Wireless Mouse,pcs,500,480,450,400,300,18,10,50
+Mechanical Keyboard,MK-02,8471,RGB Mechanical Keyboard,pcs,1500,1400,1300,1200,900,18,5,20
+```
+*(Save the above snippet as a `.csv` file and use the `Import CSV` button in the Items Master Data section.)*
 
 ---
 

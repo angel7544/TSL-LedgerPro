@@ -333,9 +333,19 @@ class CreateInvoiceDialog(QDialog):
         layout.addLayout(header_form)
         
         # --- Items Table ---
+        # Add an Info button for Rate Types
+        info_layout = QHBoxLayout()
+        info_layout.addStretch()
+        info_btn = QPushButton("ⓘ Rate Types Info")
+        info_btn.setStyleSheet("background-color: transparent; color: #2563EB; text-decoration: underline; border: none; font-size: 12px;")
+        info_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        info_btn.clicked.connect(self.show_rate_types_info)
+        info_layout.addWidget(info_btn)
+        layout.addLayout(info_layout)
+
         self.items_table = QTableWidget()
-        self.items_table.setColumnCount(7)
-        self.items_table.setHorizontalHeaderLabels(["Item", "Qty", "Rate", "Disc %", "GST %", "Total", "Action"])
+        self.items_table.setColumnCount(8)
+        self.items_table.setHorizontalHeaderLabels(["Item", "Qty", "Rate Type", "Rate", "Disc %", "GST %", "Total", "Action"])
         self.items_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.items_table.setMinimumHeight(200)
         
@@ -529,25 +539,66 @@ class CreateInvoiceDialog(QDialog):
         group.setLayout(layout)
         parent_layout.addWidget(group)
 
+    def show_rate_types_info(self):
+        settings_rows = execute_read_query("SELECT `key`, value FROM settings WHERE `key` IN ('sp1_name', 'sp2_name', 'sp3_name')")
+        settings_dict = {row['key']: row['value'] for row in settings_rows}
+        sp1 = settings_dict.get('sp1_name', 'Type 1')
+        sp2 = settings_dict.get('sp2_name', 'Type 2')
+        sp3 = settings_dict.get('sp3_name', 'Type 3')
+        msg = f"Rate Types defined in Settings:\n\nType 1: {sp1}\nType 2: {sp2}\nType 3: {sp3}"
+        QMessageBox.information(self, "Rate Types Info", msg)
+
     def get_customer_price(self, item_data):
         if not item_data: return 0.0
         cust_data = self.customer_combo.currentData()
         if not cust_data: return item_data.get('selling_price', 0.0)
         
         c_type = cust_data.get('customer_type', 'Type 1')
-        if c_type == 'Type 1': return item_data.get('sp1', item_data.get('selling_price', 0.0))
-        elif c_type == 'Type 2': return item_data.get('sp2', item_data.get('selling_price', 0.0))
-        elif c_type == 'Type 3': return item_data.get('sp3', item_data.get('selling_price', 0.0))
+        
+        # Get custom names from settings
+        settings_rows = execute_read_query("SELECT `key`, value FROM settings WHERE `key` IN ('sp1_name', 'sp2_name', 'sp3_name')")
+        settings_dict = {row['key']: row['value'] for row in settings_rows}
+        sp1_name = settings_dict.get('sp1_name', 'Type 1')
+        sp2_name = settings_dict.get('sp2_name', 'Type 2')
+        sp3_name = settings_dict.get('sp3_name', 'Type 3')
+        
+        if c_type == 'Type 1' or c_type == sp1_name: return item_data.get('sp1', item_data.get('selling_price', 0.0))
+        elif c_type == 'Type 2' or c_type == sp2_name: return item_data.get('sp2', item_data.get('selling_price', 0.0))
+        elif c_type == 'Type 3' or c_type == sp3_name: return item_data.get('sp3', item_data.get('selling_price', 0.0))
         return item_data.get('selling_price', 0.0)
 
     def on_customer_changed(self):
-        # Update rates for all currently added items
+        # Update rate types for all currently added items
+        cust_data = self.customer_combo.currentData()
+        c_type = cust_data.get('customer_type', 'Type 1') if cust_data else 'Default'
+        
+        settings_rows = execute_read_query("SELECT `key`, value FROM settings WHERE `key` IN ('sp1_name', 'sp2_name', 'sp3_name')")
+        settings_dict = {row['key']: row['value'] for row in settings_rows}
+        sp1 = settings_dict.get('sp1_name', 'Type 1')
+        sp2 = settings_dict.get('sp2_name', 'Type 2')
+        sp3 = settings_dict.get('sp3_name', 'Type 3')
+        
         for row in range(self.items_table.rowCount()):
+            rate_type_combo = self.items_table.cellWidget(row, 2)
+            if rate_type_combo:
+                # Block signals to avoid double recalculation
+                rate_type_combo.blockSignals(True)
+                if c_type == 'Type 1' or c_type == sp1:
+                    rate_type_combo.setCurrentIndex(1)
+                elif c_type == 'Type 2' or c_type == sp2:
+                    rate_type_combo.setCurrentIndex(2)
+                elif c_type == 'Type 3' or c_type == sp3:
+                    rate_type_combo.setCurrentIndex(3)
+                else:
+                    rate_type_combo.setCurrentIndex(0)
+                rate_type_combo.blockSignals(False)
+                
             combo = self.items_table.cellWidget(row, 0)
             item_data = combo.currentData()
-            if item_data:
-                new_price = self.get_customer_price(item_data)
-                self.items_table.cellWidget(row, 2).setText(str(new_price))
+            if item_data and rate_type_combo:
+                rate_field = rate_type_combo.currentData()
+                new_price = item_data.get(rate_field, item_data.get('selling_price', 0.0))
+                self.items_table.cellWidget(row, 3).setText(str(new_price))
         self.calculate_total()
 
     def load_customers(self):
@@ -590,13 +641,23 @@ class CreateInvoiceDialog(QDialog):
                 if combo.itemData(i)['id'] == item_data['item_id']:
                     idx = i
                     break
+            
+            combo.blockSignals(True)
             if idx >= 0:
                 combo.setCurrentIndex(idx)
+            combo.blockSignals(False)
             
             rate = str(item_data['rate'])
             gst = str(item_data['gst_percent'])
             qty_val = str(item_data['quantity'])
             disc_val = str(item_data['discount_percent'])
+            
+            # Since this is loaded data, we might want to just set it to 'Default' to not overwrite manually changed rates, 
+            # or try to guess the rate type. For simplicity, just let it be default and the rate line edit will hold the actual rate.
+            rate_type_combo.blockSignals(True)
+            rate_type_combo.setCurrentIndex(0)
+            rate_type_combo.blockSignals(False)
+            
         elif self.available_items:
             first_item = self.available_items[0]
             rate = str(self.get_customer_price(first_item))
@@ -611,10 +672,38 @@ class CreateInvoiceDialog(QDialog):
 
         combo.currentIndexChanged.connect(self.on_item_changed)
         
+        # Rate Type Combo
+        rate_type_combo = QComboBox()
+        settings_rows = execute_read_query("SELECT `key`, value FROM settings WHERE `key` IN ('sp1_name', 'sp2_name', 'sp3_name')")
+        settings_dict = {row['key']: row['value'] for row in settings_rows}
+        sp1 = settings_dict.get('sp1_name', 'Type 1')
+        sp2 = settings_dict.get('sp2_name', 'Type 2')
+        sp3 = settings_dict.get('sp3_name', 'Type 3')
+        
+        rate_type_combo.addItem("Default", "selling_price")
+        rate_type_combo.addItem(f"SP1 ({sp1})", "sp1")
+        rate_type_combo.addItem(f"SP2 ({sp2})", "sp2")
+        rate_type_combo.addItem(f"SP3 ({sp3})", "sp3")
+        
+        # Set default to Customer's Type if possible
+        cust_data = self.customer_combo.currentData()
+        c_type = cust_data.get('customer_type', 'Type 1') if cust_data else 'Default'
+        if c_type == 'Type 1' or c_type == sp1:
+            rate_type_combo.setCurrentIndex(1)
+        elif c_type == 'Type 2' or c_type == sp2:
+            rate_type_combo.setCurrentIndex(2)
+        elif c_type == 'Type 3' or c_type == sp3:
+            rate_type_combo.setCurrentIndex(3)
+        else:
+            rate_type_combo.setCurrentIndex(0)
+            
+        rate_type_combo.currentIndexChanged.connect(self.on_rate_type_changed)
+        
         qty = QLineEdit(qty_val)
         rate_edit = QLineEdit(rate)
         disc = QLineEdit(disc_val)
         gst_edit = QLineEdit(gst)
+        
         total = QLabel("0.00")
         
         # Connect signals to recalculate
@@ -625,16 +714,17 @@ class CreateInvoiceDialog(QDialog):
         
         self.items_table.setCellWidget(row, 0, combo)
         self.items_table.setCellWidget(row, 1, qty)
-        self.items_table.setCellWidget(row, 2, rate_edit)
-        self.items_table.setCellWidget(row, 3, disc)
-        self.items_table.setCellWidget(row, 4, gst_edit)
-        self.items_table.setCellWidget(row, 5, total)
+        self.items_table.setCellWidget(row, 2, rate_type_combo)
+        self.items_table.setCellWidget(row, 3, rate_edit)
+        self.items_table.setCellWidget(row, 4, disc)
+        self.items_table.setCellWidget(row, 5, gst_edit)
+        self.items_table.setCellWidget(row, 6, total)
         
         # Remove Button
         remove_btn = QPushButton("X")
         remove_btn.setStyleSheet("color: red; font-weight: bold;")
         remove_btn.clicked.connect(self.remove_item_row)
-        self.items_table.setCellWidget(row, 6, remove_btn)
+        self.items_table.setCellWidget(row, 7, remove_btn)
         
         self.calculate_total()
 
@@ -661,6 +751,19 @@ class CreateInvoiceDialog(QDialog):
                     return r
         return -1
 
+    def on_rate_type_changed(self):
+        row = self.get_sender_row()
+        if row < 0: return
+        
+        combo = self.items_table.cellWidget(row, 0)
+        item_data = combo.currentData()
+        if item_data:
+            rate_type_combo = self.items_table.cellWidget(row, 2)
+            rate_field = rate_type_combo.currentData()
+            new_price = item_data.get(rate_field, item_data.get('selling_price', 0.0))
+            self.items_table.cellWidget(row, 3).setText(str(new_price))
+            self.calculate_total()
+
     def on_item_changed(self):
         row = self.get_sender_row()
         if row < 0: return
@@ -668,27 +771,38 @@ class CreateInvoiceDialog(QDialog):
         combo = self.items_table.cellWidget(row, 0)
         item_data = combo.currentData()
         if item_data:
-            self.items_table.cellWidget(row, 2).setText(str(self.get_customer_price(item_data)))
-            self.items_table.cellWidget(row, 4).setText(str(item_data['gst_rate']))
+            rate_type_combo = self.items_table.cellWidget(row, 2)
+            rate_field = rate_type_combo.currentData()
+            new_price = item_data.get(rate_field, item_data.get('selling_price', 0.0))
+            self.items_table.cellWidget(row, 3).setText(str(new_price))
+            self.items_table.cellWidget(row, 5).setText(str(item_data['gst_rate']))
             self.calculate_total()
 
     def calculate_total(self):
         grand_total = 0.0
-        try:
-            for row in range(self.items_table.rowCount()):
-                qty = float(self.items_table.cellWidget(row, 1).text() or 0)
-                rate = float(self.items_table.cellWidget(row, 2).text() or 0)
-                disc = float(self.items_table.cellWidget(row, 3).text() or 0)
-                gst = float(self.items_table.cellWidget(row, 4).text() or 0)
+        for row in range(self.items_table.rowCount()):
+            try:
+                qty_w = self.items_table.cellWidget(row, 1)
+                rate_w = self.items_table.cellWidget(row, 3)
+                disc_w = self.items_table.cellWidget(row, 4)
+                gst_w = self.items_table.cellWidget(row, 5)
+                total_w = self.items_table.cellWidget(row, 6)
+                
+                if not (qty_w and rate_w and disc_w and gst_w and total_w): continue
+                
+                qty = float(qty_w.text() or 0)
+                rate = float(rate_w.text() or 0)
+                disc = float(disc_w.text() or 0)
+                gst = float(gst_w.text() or 0)
                 
                 amount = (rate * (1 - disc/100)) * qty
                 tax = amount * (gst/100)
                 line_total = amount + tax
                 
-                self.items_table.cellWidget(row, 5).setText(f"{line_total:.2f}")
+                total_w.setText(f"{line_total:.2f}")
                 grand_total += line_total
-        except ValueError:
-            pass
+            except ValueError:
+                pass
             
         self.calculated_subtotal = grand_total
         self.subtotal_label.setText(f"{grand_total:.2f}")
@@ -740,9 +854,9 @@ class CreateInvoiceDialog(QDialog):
                 
             try:
                 qty = float(self.items_table.cellWidget(row, 1).text())
-                rate = float(self.items_table.cellWidget(row, 2).text())
-                disc = float(self.items_table.cellWidget(row, 3).text())
-                gst = float(self.items_table.cellWidget(row, 4).text())
+                rate = float(self.items_table.cellWidget(row, 3).text())
+                disc = float(self.items_table.cellWidget(row, 4).text())
+                gst = float(self.items_table.cellWidget(row, 5).text())
                 
                 items.append({
                     "item_id": item_data['id'],

@@ -125,9 +125,15 @@ class ReportsPage(QWidget):
         return self.stock_table
 
     def create_price_list_tab(self):
+        settings_rows = execute_read_query("SELECT `key`, value FROM settings WHERE `key` IN ('sp1_name', 'sp2_name', 'sp3_name')")
+        settings_dict = {row['key']: row['value'] for row in settings_rows}
+        sp1_name = settings_dict.get('sp1_name', 'Type 1')
+        sp2_name = settings_dict.get('sp2_name', 'Type 2')
+        sp3_name = settings_dict.get('sp3_name', 'Type 3')
+
         self.price_table = QTableWidget()
-        self.price_table.setColumnCount(3)
-        self.price_table.setHorizontalHeaderLabels(["Item Name", "SKU", "Selling Price"])
+        self.price_table.setColumnCount(6)
+        self.price_table.setHorizontalHeaderLabels(["Item Name", "SKU", "Default Price", sp1_name, sp2_name, sp3_name])
         self.price_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         return self.price_table
 
@@ -168,7 +174,7 @@ class ReportsPage(QWidget):
         self.stock_data_list = get_stock_valuation()
         
         # Price List
-        self.price_list_data = execute_read_query("SELECT name, sku, selling_price FROM items ORDER BY name")
+        self.price_list_data = execute_read_query("SELECT name, sku, selling_price, sp1, sp2, sp3 FROM items ORDER BY name")
         
         # Aging Reports
         self.ar_aging_data = get_ar_aging_report()
@@ -234,6 +240,9 @@ class ReportsPage(QWidget):
                 self.price_table.setItem(r, 0, QTableWidgetItem(row['name']))
                 self.price_table.setItem(r, 1, QTableWidgetItem(row['sku'] or ""))
                 self.price_table.setItem(r, 2, QTableWidgetItem(f"₹{row['selling_price']:.2f}"))
+                self.price_table.setItem(r, 3, QTableWidgetItem(f"₹{row.get('sp1', 0):.2f}"))
+                self.price_table.setItem(r, 4, QTableWidgetItem(f"₹{row.get('sp2', 0):.2f}"))
+                self.price_table.setItem(r, 5, QTableWidgetItem(f"₹{row.get('sp3', 0):.2f}"))
         
         elif tab_index == 6: # AR Aging
             rows = []
@@ -340,7 +349,12 @@ class ReportsPage(QWidget):
             elif tab_index == 5: # Price List
                 title = "PRICE LIST"
                 filename = os.path.join(folder, "price_list.pdf")
-                headers = ["Item Name", "SKU", "Selling Price"]
+                settings_rows = execute_read_query("SELECT `key`, value FROM settings WHERE `key` IN ('sp1_name', 'sp2_name', 'sp3_name')")
+                settings_dict_local = {row['key']: row['value'] for row in settings_rows}
+                sp1_name = settings_dict_local.get('sp1_name', 'Type 1')
+                sp2_name = settings_dict_local.get('sp2_name', 'Type 2')
+                sp3_name = settings_dict_local.get('sp3_name', 'Type 3')
+                headers = ["Item Name", "SKU", "Default Price", sp1_name, sp2_name, sp3_name]
                 rows = self.get_table_data(self.price_table)
                 
             elif tab_index == 6: # AR Aging

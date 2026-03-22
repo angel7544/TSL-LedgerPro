@@ -65,6 +65,14 @@ class SettingsPage(QWidget):
         self.invoice_prefix = QLineEdit()
         self.payment_prefix = QLineEdit()
         
+        # Rate Types Custom Names
+        self.sp1_name = QLineEdit()
+        self.sp2_name = QLineEdit()
+        self.sp3_name = QLineEdit()
+        self.sp1_name.setPlaceholderText("e.g. Friend")
+        self.sp2_name.setPlaceholderText("e.g. Retailer")
+        self.sp3_name.setPlaceholderText("e.g. Regular Customer")
+        
         # Logo Section
         self.logo_path = ""
         self.logo_label = QLabel("No Logo Selected")
@@ -84,6 +92,9 @@ class SettingsPage(QWidget):
         form_layout.addRow("Phone:", self.phone)
         form_layout.addRow("Invoice Prefix:", self.invoice_prefix)
         form_layout.addRow("Payment Prefix:", self.payment_prefix)
+        form_layout.addRow("SP1 Name:", self.sp1_name)
+        form_layout.addRow("SP2 Name:", self.sp2_name)
+        form_layout.addRow("SP3 Name:", self.sp3_name)
         form_layout.addRow("Logo:", self.logo_btn)
         form_layout.addRow("", self.logo_label)
         
@@ -348,6 +359,10 @@ class SettingsPage(QWidget):
         self.invoice_prefix.setText(self.settings_data.get('invoice_prefix', 'INV-'))
         self.payment_prefix.setText(self.settings_data.get('payment_prefix', 'PAY-'))
         
+        self.sp1_name.setText(self.settings_data.get('sp1_name', 'Type 1'))
+        self.sp2_name.setText(self.settings_data.get('sp2_name', 'Type 2'))
+        self.sp3_name.setText(self.settings_data.get('sp3_name', 'Type 3'))
+        
         logo = self.settings_data.get('company_logo', '')
         if logo and os.path.exists(logo):
             self.logo_path = logo
@@ -397,6 +412,9 @@ class SettingsPage(QWidget):
                 ("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ('company_phone', self.phone.text())),
                 ("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ('invoice_prefix', self.invoice_prefix.text())),
                 ("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ('payment_prefix', self.payment_prefix.text())),
+                ("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ('sp1_name', self.sp1_name.text() or 'Type 1')),
+                ("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ('sp2_name', self.sp2_name.text() or 'Type 2')),
+                ("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ('sp3_name', self.sp3_name.text() or 'Type 3')),
                 ("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ('company_logo', self.logo_path))
             ]
             for query, params in updates:

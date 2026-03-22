@@ -1,0 +1,7 @@
+Item Name,SKU,HSN/SAC,Description,Unit,Rate,SP1,SP2,SP3,Purchase Rate,GST Rate,Reorder Point,Opening Stock
+Premium Laptop,LP-01,8471,16GB RAM 512GB SSD,pcs,55000,53000,51000,50000,45000,18,5,10
+Wireless Mouse,WM-01,8471,Ergonomic Wireless Mouse,pcs,500,480,450,400,300,18,10,50
+Mechanical Keyboard,MK-02,8471,RGB Mechanical Keyboard,pcs,1500,1400,1300,1200,900,18,5,20
+Office Desk,DSK-01,9403,Wooden Office Desk,pcs,12000,11500,11000,10500,8000,12,2,5
+Ergonomic Chair,CHR-01,9401,Mesh Ergonomic Chair,pcs,8000,7800,7500,7000,5000,12,5,15
+Notebook A4,NB-A4,4820,Ruled 200 Pages,pcs,100,95,90,80,50,5,50,200

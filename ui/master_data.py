@@ -229,11 +229,16 @@ class BaseCRUDPage(QWidget):
 
 class CustomersPage(BaseCRUDPage):
     def __init__(self):
+        settings_rows = execute_read_query("SELECT `key`, value FROM settings WHERE `key` IN ('sp1_name', 'sp2_name', 'sp3_name')")
+        settings_dict = {row['key']: row['value'] for row in settings_rows}
+        sp1_name = settings_dict.get('sp1_name', 'Type 1')
+        sp2_name = settings_dict.get('sp2_name', 'Type 2')
+        sp3_name = settings_dict.get('sp3_name', 'Type 3')
         super().__init__("Customers", "customers", 
                          [("Name", "name"), ("Phone", "phone"), ("Type", "customer_type"), ("GSTIN", "gstin"), ("State", "state"), ("Credits", "credits")],
                          [("Name", "name", "text"), ("Phone", "phone", "text"), ("Email", "email", "text"), 
                           ("Address", "address", "text"), ("GSTIN", "gstin", "text"), ("State", "state", "text"), 
-                          ("Customer Type", "customer_type", "combo", ["Type 1", "Type 2", "Type 3"])])
+                          ("Customer Type", "customer_type", "combo", [sp1_name, sp2_name, sp3_name])])
 
     def refresh_data(self):
         # Override to include credits calculation
@@ -296,8 +301,16 @@ class VendorsPage(BaseCRUDPage):
 
 class ItemsPage(BaseCRUDPage):
     def __init__(self):
+        settings_rows = execute_read_query("SELECT `key`, value FROM settings WHERE `key` IN ('sp1_name', 'sp2_name', 'sp3_name')")
+        settings_dict = {row['key']: row['value'] for row in settings_rows}
+        sp1_name = settings_dict.get('sp1_name', 'Type 1')
+        sp2_name = settings_dict.get('sp2_name', 'Type 2')
+        sp3_name = settings_dict.get('sp3_name', 'Type 3')
+
         super().__init__("Items", "items",
-                         [("Name", "name"), ("SKU", "sku"), ("Price", "selling_price"), ("Stock", "stock_on_hand"), ("Reorder", "reorder_point")],
+                         [("Name", "name"), ("SKU", "sku"), ("Price", "selling_price"), 
+                          (sp1_name, "sp1"), (sp2_name, "sp2"), (sp3_name, "sp3"),
+                          ("Stock", "stock_on_hand"), ("Reorder", "reorder_point")],
                          [("Name", "name", "text"), ("SKU", "sku", "text"), ("HSN/SAC", "hsn_sac", "text"),
                           ("Description", "description", "text"), ("Unit", "unit", "text"), 
                           ("Selling Price", "selling_price", "number"), ("Purchase Price", "purchase_price", "number"),
@@ -408,6 +421,13 @@ class ItemsPage(BaseCRUDPage):
         tab_price = QWidget()
         form_price = QFormLayout(tab_price)
         
+        # Get custom names
+        settings_rows = execute_read_query("SELECT `key`, value FROM settings WHERE `key` IN ('sp1_name', 'sp2_name', 'sp3_name')")
+        settings_dict = {row['key']: row['value'] for row in settings_rows}
+        sp1_name = settings_dict.get('sp1_name', 'Type 1')
+        sp2_name = settings_dict.get('sp2_name', 'Type 2')
+        sp3_name = settings_dict.get('sp3_name', 'Type 3')
+
         sb_sell = QDoubleSpinBox()
         sb_sell.setRange(0, 1000000)
         sb_sell.setDecimals(2)
@@ -416,17 +436,17 @@ class ItemsPage(BaseCRUDPage):
         sb_sp1 = QDoubleSpinBox()
         sb_sp1.setRange(0, 1000000)
         sb_sp1.setDecimals(2)
-        add_row(form_price, "Selling Price 1 (SP1)", "sp1", sb_sp1)
+        add_row(form_price, f"Selling Price 1 ({sp1_name})", "sp1", sb_sp1)
         
         sb_sp2 = QDoubleSpinBox()
         sb_sp2.setRange(0, 1000000)
         sb_sp2.setDecimals(2)
-        add_row(form_price, "Selling Price 2 (SP2)", "sp2", sb_sp2)
+        add_row(form_price, f"Selling Price 2 ({sp2_name})", "sp2", sb_sp2)
         
         sb_sp3 = QDoubleSpinBox()
         sb_sp3.setRange(0, 1000000)
         sb_sp3.setDecimals(2)
-        add_row(form_price, "Selling Price 3 (SP3)", "sp3", sb_sp3)
+        add_row(form_price, f"Selling Price 3 ({sp3_name})", "sp3", sb_sp3)
         
         sb_cost = QDoubleSpinBox()
         sb_cost.setRange(0, 1000000)
@@ -870,11 +890,17 @@ class ItemsPage(BaseCRUDPage):
         if not filename: return
             
         try:
+            settings_rows = execute_read_query("SELECT `key`, value FROM settings WHERE `key` IN ('sp1_name', 'sp2_name', 'sp3_name')")
+            settings_dict = {row['key']: row['value'] for row in settings_rows}
+            sp1_name = settings_dict.get('sp1_name', 'Type 1')
+            sp2_name = settings_dict.get('sp2_name', 'Type 2')
+            sp3_name = settings_dict.get('sp3_name', 'Type 3')
+
             items = execute_read_query("SELECT * FROM items")
             with open(filename, 'w', newline='', encoding='utf-8') as f:
                 writer = csv.writer(f)
                 writer.writerow(["Item Name", "SKU", "HSN/SAC", "Description", "Unit", 
-                               "Rate", "SP1", "SP2", "SP3", "Purchase Rate", "GST Rate", "Reorder Point", "Stock On Hand"])
+                               "Default Rate", sp1_name, sp2_name, sp3_name, "Purchase Rate", "GST Rate", "Reorder Point", "Stock On Hand"])
                 for item in items:
                     writer.writerow([
                         item['name'], item['sku'], item['hsn_sac'], item['description'], item['unit'],

@@ -82,7 +82,7 @@ def get_stock_valuation_summary():
     """
     Returns a summary of stock valuation for all items.
     """
-    items = execute_read_query("SELECT id, name FROM items")
+    items = execute_read_query("SELECT id, name, selling_price, sp1, sp2, sp3 FROM items")
     summary = []
     
     for item in items:
@@ -107,6 +107,10 @@ def get_stock_valuation_summary():
         summary.append({
             "item_id": item_id,
             "item_name": item['name'],
+            "selling_price": item.get('selling_price', 0.0),
+            "sp1": item.get('sp1', 0.0),
+            "sp2": item.get('sp2', 0.0),
+            "sp3": item.get('sp3', 0.0),
             "total_quantity": total_qty,
             "total_value": round(total_value, 2),
             "avg_cost": round(avg_cost, 2)

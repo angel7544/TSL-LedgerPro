@@ -37,9 +37,15 @@ class StockPage(QWidget):
         header.addWidget(export_btn)
         layout.addLayout(header)
         
+        settings_rows = execute_read_query("SELECT `key`, value FROM settings WHERE `key` IN ('sp1_name', 'sp2_name', 'sp3_name')")
+        settings_dict = {row['key']: row['value'] for row in settings_rows}
+        self.sp1_name = settings_dict.get('sp1_name', 'Type 1')
+        self.sp2_name = settings_dict.get('sp2_name', 'Type 2')
+        self.sp3_name = settings_dict.get('sp3_name', 'Type 3')
+        
         self.table = QTableWidget()
-        self.table.setColumnCount(4)
-        self.table.setHorizontalHeaderLabels(["Item Name", "Qty Available", "FIFO Value", "Avg Cost"])
+        self.table.setColumnCount(8)
+        self.table.setHorizontalHeaderLabels(["Item Name", "Qty Available", "FIFO Value", "Avg Cost", "Default Price", self.sp1_name, self.sp2_name, self.sp3_name])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         
@@ -74,6 +80,10 @@ class StockPage(QWidget):
             self.table.setItem(r, 1, QTableWidgetItem(str(item['total_quantity'])))
             self.table.setItem(r, 2, QTableWidgetItem(f"₹{item['total_value']:.2f}"))
             self.table.setItem(r, 3, QTableWidgetItem(f"₹{item['avg_cost']:.2f}"))
+            self.table.setItem(r, 4, QTableWidgetItem(f"₹{item.get('selling_price', 0):.2f}"))
+            self.table.setItem(r, 5, QTableWidgetItem(f"₹{item.get('sp1', 0):.2f}"))
+            self.table.setItem(r, 6, QTableWidgetItem(f"₹{item.get('sp2', 0):.2f}"))
+            self.table.setItem(r, 7, QTableWidgetItem(f"₹{item.get('sp3', 0):.2f}"))
         
         total_qty = 0.0
         total_value = 0.0
@@ -210,6 +220,9 @@ class StockPage(QWidget):
         if filename:
             with open(filename, 'w', newline='', encoding='utf-8') as f:
                 writer = csv.writer(f)
-                writer.writerow(["Item Name", "Quantity", "Total Value", "Avg Cost"])
+                writer.writerow(["Item Name", "Quantity", "Total Value", "Avg Cost", "Default Price", self.sp1_name, self.sp2_name, self.sp3_name])
                 for item in self.stock_data:
-                    writer.writerow([item['item_name'], item['total_quantity'], item['total_value'], item['avg_cost']])
+                    writer.writerow([
+                        item['item_name'], item['total_quantity'], item['total_value'], item['avg_cost'],
+                        item.get('selling_price', 0), item.get('sp1', 0), item.get('sp2', 0), item.get('sp3', 0)
+                    ])
