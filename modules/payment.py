@@ -248,32 +248,25 @@ def generate_payment_number():
     return f"{prefix}{next_num:04d}"
 
 def save_payment(data):
-    """
-    Saves a payment against invoices and updates invoice statuses.
-    Handles unallocated amounts as credits (invoice_id=NULL).
-    """
+    transaction_queries = []
     
     # Extract allocations from data
     allocations = data.get('allocations', [])
     customer_id = data.get('customer_id')
-    amount_received = data.get('amount_received', 0.0)
-    use_credits = data.get('use_credits', False)
-    
-    payment_date = data.get('date', datetime.date.today().strftime("%Y-%m-%d"))
-    method = data.get('method', 'Cash')
-    reference = data.get('reference', '')
-    notes = data.get('notes', '')
-    
-    payment_number = data.get('payment_number') or generate_payment_number()
+    vendor_id = data.get('vendor_id')
+    payment_date = data.get('date')
+    method = data.get('method')
+    reference = data.get('reference')
+    notes = data.get('notes')
+    payment_number = data.get('payment_number', generate_payment_number())
     deposit_to = data.get('deposit_to', '')
     bank_charges = data.get('bank_charges', 0.0)
     tax_deducted = data.get('tax_deducted', 0.0)
     tax_account = data.get('tax_account', '')
     attachment_path = data.get('attachment_path', '')
-    send_thank_you = 1 if data.get('send_thank_you') else 0
     custom_fields = data.get('custom_fields', '{}')
-    
-    transaction_queries = []
+    send_thank_you = 1 if data.get('send_thank_you') else 0
+    use_credits = data.get('use_credits', False)
     
     # Calculate available credits if requested
     available_credits = 0.0
