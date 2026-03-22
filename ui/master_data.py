@@ -162,15 +162,34 @@ class BaseCRUDPage(QWidget):
                 # but if we don't return, we crash.
                 return
 
-        for label, db_col, typ in self.form_fields:
-            inp = QLineEdit()
-            if record:
-                # Use dict access for sqlite3.Row or standard dict
-                try:
-                    val = record[db_col]
-                    inp.setText(str(val) if val is not None else "")
-                except IndexError:
-                    inp.setText("")
+        for field in self.form_fields:
+            if len(field) == 3:
+                label, db_col, typ = field
+                options = []
+            else:
+                label, db_col, typ, options = field
+            
+            if typ == "combo":
+                inp = QComboBox()
+                inp.addItems(options)
+                if record:
+                    try:
+                        val = record[db_col]
+                        if val is not None:
+                            idx = inp.findText(str(val))
+                            if idx >= 0:
+                                inp.setCurrentIndex(idx)
+                    except IndexError:
+                        pass
+            else:
+                inp = QLineEdit()
+                if record:
+                    # Use dict access for sqlite3.Row or standard dict
+                    try:
+                        val = record[db_col]
+                        inp.setText(str(val) if val is not None else "")
+                    except IndexError:
+                        inp.setText("")
             layout.addRow(label, inp)
             inputs[db_col] = inp
             
@@ -184,7 +203,12 @@ class BaseCRUDPage(QWidget):
             self.refresh_data()
 
     def save_data(self, dialog, inputs, record_id=None):
-        data = {col: inp.text() for col, inp in inputs.items()}
+        data = {}
+        for col, inp in inputs.items():
+            if isinstance(inp, QComboBox):
+                data[col] = inp.currentText()
+            else:
+                data[col] = inp.text()
         
         try:
             if record_id:
@@ -206,9 +230,10 @@ class BaseCRUDPage(QWidget):
 class CustomersPage(BaseCRUDPage):
     def __init__(self):
         super().__init__("Customers", "customers", 
-                         [("Name", "name"), ("Phone", "phone"), ("Email", "email"), ("GSTIN", "gstin"), ("State", "state"), ("Credits", "credits")],
+                         [("Name", "name"), ("Phone", "phone"), ("Type", "customer_type"), ("GSTIN", "gstin"), ("State", "state"), ("Credits", "credits")],
                          [("Name", "name", "text"), ("Phone", "phone", "text"), ("Email", "email", "text"), 
-                          ("Address", "address", "text"), ("GSTIN", "gstin", "text"), ("State", "state", "text")])
+                          ("Address", "address", "text"), ("GSTIN", "gstin", "text"), ("State", "state", "text"), 
+                          ("Customer Type", "customer_type", "combo", ["Type 1", "Type 2", "Type 3"])])
 
     def refresh_data(self):
         # Override to include credits calculation
@@ -388,6 +413,21 @@ class ItemsPage(BaseCRUDPage):
         sb_sell.setDecimals(2)
         add_row(form_price, "Selling Price (Rate)", "selling_price", sb_sell)
         
+        sb_sp1 = QDoubleSpinBox()
+        sb_sp1.setRange(0, 1000000)
+        sb_sp1.setDecimals(2)
+        add_row(form_price, "Selling Price 1 (SP1)", "sp1", sb_sp1)
+        
+        sb_sp2 = QDoubleSpinBox()
+        sb_sp2.setRange(0, 1000000)
+        sb_sp2.setDecimals(2)
+        add_row(form_price, "Selling Price 2 (SP2)", "sp2", sb_sp2)
+        
+        sb_sp3 = QDoubleSpinBox()
+        sb_sp3.setRange(0, 1000000)
+        sb_sp3.setDecimals(2)
+        add_row(form_price, "Selling Price 3 (SP3)", "sp3", sb_sp3)
+        
         sb_cost = QDoubleSpinBox()
         sb_cost.setRange(0, 1000000)
         sb_cost.setDecimals(2)
@@ -517,6 +557,9 @@ class ItemsPage(BaseCRUDPage):
             
             # Numeric
             data['selling_price'] = self.item_inputs['selling_price'].value()
+            data['sp1'] = self.item_inputs['sp1'].value()
+            data['sp2'] = self.item_inputs['sp2'].value()
+            data['sp3'] = self.item_inputs['sp3'].value()
             data['purchase_price'] = self.item_inputs['purchase_price'].value()
             data['gst_rate'] = self.item_inputs['gst_rate'].value()
             data['intra_state_tax_rate'] = self.item_inputs['intra_state_tax_rate'].value()
@@ -690,6 +733,9 @@ class ItemsPage(BaseCRUDPage):
                     'desc': ['Description', 'Desc'],
                     'unit': ['Unit Name', 'Usage unit', 'Unit'],
                     'selling_price': ['Rate', 'Selling Price', 'Price'],
+                    'sp1': ['SP1', 'Selling Price 1'],
+                    'sp2': ['SP2', 'Selling Price 2'],
+                    'sp3': ['SP3', 'Selling Price 3'],
                     'purchase_price': ['Purchase Rate', 'Purchase Price', 'Cost'],
                     'reorder_point': ['Reorder Point', 'Min Stock'],
                     'opening_stock': ['Opening Stock', 'Initial Stock'],
@@ -741,6 +787,9 @@ class ItemsPage(BaseCRUDPage):
                             return float(str(val).replace('INR', '').replace(',', '').strip())
 
                         selling_price = parse_float(clean_row.get(resolved_headers['selling_price'], '0')) if resolved_headers['selling_price'] else 0.0
+                        sp1 = parse_float(clean_row.get(resolved_headers['sp1'], '0')) if resolved_headers['sp1'] else 0.0
+                        sp2 = parse_float(clean_row.get(resolved_headers['sp2'], '0')) if resolved_headers['sp2'] else 0.0
+                        sp3 = parse_float(clean_row.get(resolved_headers['sp3'], '0')) if resolved_headers['sp3'] else 0.0
                         purchase_price = parse_float(clean_row.get(resolved_headers['purchase_price'], '0')) if resolved_headers['purchase_price'] else 0.0
                         reorder_point = parse_float(clean_row.get(resolved_headers['reorder_point'], '0')) if resolved_headers['reorder_point'] else 0.0
                         opening_stock = parse_float(clean_row.get(resolved_headers['opening_stock'], '0')) if resolved_headers['opening_stock'] else 0.0
@@ -784,10 +833,10 @@ class ItemsPage(BaseCRUDPage):
                         # Insert Item
                         item_id = execute_write_query("""
                             INSERT INTO items (name, sku, hsn_sac, description, unit, 
-                                             selling_price, purchase_price, gst_rate, 
+                                             selling_price, sp1, sp2, sp3, purchase_price, gst_rate, 
                                              reorder_point, stock_on_hand, opening_stock_value)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """, (name, sku, hsn, desc, unit, selling_price, purchase_price, gst_rate, reorder_point, initial_stock, opening_value))
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """, (name, sku, hsn, desc, unit, selling_price, sp1, sp2, sp3, purchase_price, gst_rate, reorder_point, initial_stock, opening_value))
                         
                         # Create Opening Stock Batch if applicable
                         if initial_stock > 0:
@@ -825,11 +874,11 @@ class ItemsPage(BaseCRUDPage):
             with open(filename, 'w', newline='', encoding='utf-8') as f:
                 writer = csv.writer(f)
                 writer.writerow(["Item Name", "SKU", "HSN/SAC", "Description", "Unit", 
-                               "Rate", "Purchase Rate", "GST Rate", "Reorder Point", "Stock On Hand"])
+                               "Rate", "SP1", "SP2", "SP3", "Purchase Rate", "GST Rate", "Reorder Point", "Stock On Hand"])
                 for item in items:
                     writer.writerow([
                         item['name'], item['sku'], item['hsn_sac'], item['description'], item['unit'],
-                        item['selling_price'], item['purchase_price'], item['gst_rate'], 
+                        item['selling_price'], item.get('sp1', 0), item.get('sp2', 0), item.get('sp3', 0), item['purchase_price'], item['gst_rate'], 
                         item['reorder_point'], item['stock_on_hand']
                     ])
             QMessageBox.information(self, "Success", "Items exported successfully!")

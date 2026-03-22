@@ -156,6 +156,15 @@ def run_migrations():
     except Exception as e:
         print(f"Migration v4 failed: {e}")
 
+    # V5
+    try:
+        import update_schema_v5
+        update_schema_v5.migrate()
+    except ImportError:
+        pass
+    except Exception as e:
+        print(f"Migration v5 failed: {e}")
+
 def execute_read_query(query, params=()):
     conn = get_connection()
     try:

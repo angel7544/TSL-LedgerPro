@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS customers (
     address TEXT,
     gstin TEXT,
     state TEXT,
+    customer_type TEXT DEFAULT 'Type 1',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -41,6 +42,9 @@ CREATE TABLE IF NOT EXISTS items (
     description TEXT,
     unit TEXT DEFAULT 'pcs',
     selling_price REAL DEFAULT 0,
+    sp1 REAL DEFAULT 0,
+    sp2 REAL DEFAULT 0,
+    sp3 REAL DEFAULT 0,
     purchase_price REAL DEFAULT 0,
     reorder_point REAL DEFAULT 0,
     stock_on_hand REAL DEFAULT 0,

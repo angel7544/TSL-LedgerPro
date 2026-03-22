@@ -292,6 +292,7 @@ class CreateInvoiceDialog(QDialog):
         # Customer
         self.customer_combo = QComboBox()
         self.load_customers()
+        self.customer_combo.currentIndexChanged.connect(self.on_customer_changed)
         header_form.addRow("Customer:", self.customer_combo)
         
         # Invoice # (Auto-generated usually, but user might want to see/edit order #)
@@ -442,7 +443,7 @@ class CreateInvoiceDialog(QDialog):
         
         # Load available items (including flags to control sellability)
         self.available_items = execute_read_query(
-            "SELECT id, name, sku, selling_price, gst_rate, is_sellable FROM items"
+            "SELECT id, name, sku, selling_price, sp1, sp2, sp3, gst_rate, is_sellable FROM items"
         )
 
         # Populate if editing
@@ -528,10 +529,31 @@ class CreateInvoiceDialog(QDialog):
         group.setLayout(layout)
         parent_layout.addWidget(group)
 
+    def get_customer_price(self, item_data):
+        if not item_data: return 0.0
+        cust_data = self.customer_combo.currentData()
+        if not cust_data: return item_data.get('selling_price', 0.0)
+        
+        c_type = cust_data.get('customer_type', 'Type 1')
+        if c_type == 'Type 1': return item_data.get('sp1', item_data.get('selling_price', 0.0))
+        elif c_type == 'Type 2': return item_data.get('sp2', item_data.get('selling_price', 0.0))
+        elif c_type == 'Type 3': return item_data.get('sp3', item_data.get('selling_price', 0.0))
+        return item_data.get('selling_price', 0.0)
+
+    def on_customer_changed(self):
+        # Update rates for all currently added items
+        for row in range(self.items_table.rowCount()):
+            combo = self.items_table.cellWidget(row, 0)
+            item_data = combo.currentData()
+            if item_data:
+                new_price = self.get_customer_price(item_data)
+                self.items_table.cellWidget(row, 2).setText(str(new_price))
+        self.calculate_total()
+
     def load_customers(self):
-        customers = execute_read_query("SELECT id, name FROM customers")
+        customers = execute_read_query("SELECT id, name, customer_type FROM customers")
         for c in customers:
-            self.customer_combo.addItem(c['name'], c['id'])
+            self.customer_combo.addItem(c['name'], {'id': c['id'], 'customer_type': c.get('customer_type', 'Type 1')})
 
     def add_item_row(self, item_data=None):
         row = self.items_table.rowCount()
@@ -577,7 +599,7 @@ class CreateInvoiceDialog(QDialog):
             disc_val = str(item_data['discount_percent'])
         elif self.available_items:
             first_item = self.available_items[0]
-            rate = str(first_item['selling_price'])
+            rate = str(self.get_customer_price(first_item))
             gst = str(first_item['gst_rate'])
             qty_val = "1"
             disc_val = "0"
@@ -646,7 +668,7 @@ class CreateInvoiceDialog(QDialog):
         combo = self.items_table.cellWidget(row, 0)
         item_data = combo.currentData()
         if item_data:
-            self.items_table.cellWidget(row, 2).setText(str(item_data['selling_price']))
+            self.items_table.cellWidget(row, 2).setText(str(self.get_customer_price(item_data)))
             self.items_table.cellWidget(row, 4).setText(str(item_data['gst_rate']))
             self.calculate_total()
 
@@ -687,10 +709,11 @@ class CreateInvoiceDialog(QDialog):
             self.attach_label.setText(os.path.basename(path))
 
     def save_invoice(self):
-        customer_id = self.customer_combo.currentData()
-        if not customer_id:
+        customer_data = self.customer_combo.currentData()
+        if not customer_data:
             QMessageBox.warning(self, "Error", "Please select a customer")
             return
+        customer_id = customer_data['id']
             
         items = []
         for row in range(self.items_table.rowCount()):
