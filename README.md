@@ -138,7 +138,7 @@ To create a standalone executable (`.exe`) for Windows:
    
    *Alternatively, use the command line:*
    ```bash
-   pyinstaller --noconfirm --onedir --windowed --icon "tsl_icon.ico" --name "LedgerProDesktop" --add-data "assets;assets" --add-data "database/schema.sql;database" main.py
+     python -m PyInstaller --noconfirm --onedir --windowed --icon "tsl_icon.ico" --name "LedgerProDesktop" --add-data "assets;assets" --add-data "database/schema.sql;database" main.py
    ```
 
 3. **Locate the Output**:
