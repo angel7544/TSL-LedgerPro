@@ -1,0 +1,4 @@
+-- SQL COMMAND:
+SELECT * FROM settings
+-- PARAMETERS:
+[]

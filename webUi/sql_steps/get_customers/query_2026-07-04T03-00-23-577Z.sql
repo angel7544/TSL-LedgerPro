@@ -1,0 +1,4 @@
+-- SQL COMMAND:
+SELECT * FROM customers ORDER BY name ASC
+-- PARAMETERS:
+[]
