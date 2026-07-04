@@ -420,11 +420,11 @@ export default function App() {
               { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
               { id: 'master', label: 'Master Data', icon: <Users size={18} /> },
               { id: 'invoices', label: 'Invoices & Sales', icon: <ShoppingCart size={18} /> },
-              { id: 'bills', label: 'Bills & Purchases', icon: <Receipt size={18} />, adminOnly: true },
-              { id: 'payments', label: 'Payments ledger', icon: <Wallet size={18} />, adminOnly: true },
+              { id: 'bills', label: 'Bills & Purchases', icon: <Receipt size={18} /> },
+              { id: 'payments', label: 'Payments ledger', icon: <Wallet size={18} /> },
               { id: 'stock', label: 'FIFO Inventory', icon: <Layers size={18} />, adminOnly: true },
               { id: 'reports', label: 'Reports', icon: <BarChart3 size={18} />, adminOnly: true },
-              { id: 'settings', label: 'Settings', icon: <Settings size={18} />, adminOnly: true },
+              { id: 'settings', label: 'Settings', icon: <Settings size={18} /> },
             ].filter(item => !item.adminOnly || user?.role === 'Admin').map(item => (
               <button 
                 key={item.id}
@@ -527,7 +527,7 @@ export default function App() {
         {currentView === 'payments' && <PaymentsView payments={payments} invoices={invoices} bills={bills} customers={customers} vendors={vendors} getHeaders={getHeaders} reload={loadAllData} />}
         {currentView === 'stock' && <StockView getHeaders={getHeaders} />}
         {currentView === 'reports' && <ReportsView getHeaders={getHeaders} />}
-        {currentView === 'settings' && <SettingsView settings={settings} getHeaders={getHeaders} reload={loadAllData} token={token} outlets={outlets} theme={theme} setTheme={setTheme} />}
+        {currentView === 'settings' && <SettingsView settings={settings} getHeaders={getHeaders} reload={loadAllData} token={token} outlets={outlets} theme={theme} setTheme={setTheme} user={user} />}
       </div>
       </div>
     </div>
@@ -553,11 +553,27 @@ function DashboardView({ stats, invoices, bills, outlets, selectedOutletFilter, 
   const profit = sales - purchases;
   const profitPct = sales > 0 ? ((profit / sales) * 100).toFixed(1) : 0;
 
-  // Simulate monthly trend points for line chart
-  const months = ['1','5','10','15','20','25','31'];
-  const salesPoints   = [35, 52, 41, 68, 58, 77, 62];
-  const purchPoints   = [20, 30, 28, 40, 35, 50, 38];
-  const expensePoints = [15, 22, 18, 30, 25, 35, 28];
+  const monthlySales = stats.monthlySales || [];
+  const monthlyPurchases = stats.monthlyPurchases || [];
+  const hasRealData = monthlySales.length > 0;
+
+  const getPoints = (dataList) => {
+    if (dataList.length === 0) return [10, 20, 15, 30, 25, 40];
+    const maxVal = Math.max(...dataList.map(d => d.total), 1000);
+    return dataList.map(d => (d.total / maxVal) * 80 + 10);
+  };
+
+  const salesPoints = hasRealData ? getPoints(monthlySales) : [35, 52, 41, 68, 58, 77, 62];
+  const purchPoints = hasRealData ? getPoints(monthlyPurchases) : [20, 30, 28, 40, 35, 50, 38];
+  const expensePoints = salesPoints.map(s => s * 0.25);
+
+  const months = hasRealData 
+    ? monthlySales.map(m => {
+        const [year, month] = m.month.split('-');
+        const date = new Date(year, parseInt(month) - 1, 1);
+        return date.toLocaleDateString('en-IN', { month: 'short' });
+      })
+    : ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   const toSvgPath = (pts) => {
     const maxY = 100; const w = 100; const h = 100;
@@ -569,7 +585,7 @@ function DashboardView({ stats, invoices, bills, outlets, selectedOutletFilter, 
   };
 
   const activePoints = chartTab === 'Sales' ? salesPoints : chartTab === 'Purchase' ? purchPoints : expensePoints;
-  const activeColor  = chartTab === 'Sales' ? '#6366f1' : chartTab === 'Purchase' ? '#f59e0b' : '#ef4444';
+  const activeColor  = chartTab === 'Sales' ? 'var(--accent-primary)' : chartTab === 'Purchase' ? 'var(--warning)' : 'var(--danger)';
 
   // Upcoming due invoices
   const upcomingInvoices = invoices.filter(inv => {
@@ -712,7 +728,7 @@ function DashboardView({ stats, invoices, bills, outlets, selectedOutletFilter, 
           </svg>
           {/* X-axis labels */}
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-            {months.map(m => <span key={m}>{m} {new Date().toLocaleDateString('en-IN', { month: 'short' })}</span>)}
+            {months.map((m, idx) => <span key={idx}>{m}</span>)}
           </div>
         </div>
       </div>
@@ -1887,8 +1903,29 @@ function InvoicesView({ invoices, customers, items, getHeaders, reload, settings
             {/* Header info */}
             <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #ddd', paddingBottom: '16px', marginBottom: '16px' }}>
               <div>
-                {(selectedInvoice.invoice.outlet_logo_url || settings.company_logo) && printLayout !== 'thermal' && (
-                  <img src={selectedInvoice.invoice.outlet_logo_url || settings.company_logo} alt="Logo" style={{ maxHeight: '40px', marginBottom: '8px', objectFit: 'contain' }} onError={e => e.target.style.display = 'none'} />
+                {(selectedInvoice.invoice.outlet_logo_url || settings.company_logo) ? (
+                  printLayout !== 'thermal' && (
+                    <img src={selectedInvoice.invoice.outlet_logo_url || settings.company_logo} alt="Logo" style={{ maxHeight: '40px', marginBottom: '8px', objectFit: 'contain' }} onError={e => e.target.style.display = 'none'} />
+                  )
+                ) : (
+                  printLayout !== 'thermal' && (
+                    <div style={{
+                      padding: '6px 12px',
+                      background: 'rgba(99, 102, 241, 0.1)',
+                      color: 'var(--accent-primary)',
+                      fontWeight: '800',
+                      fontSize: '1.1rem',
+                      borderRadius: '4px',
+                      display: 'inline-block',
+                      marginBottom: '10px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                      borderLeft: '4px solid var(--accent-primary)',
+                      fontFamily: 'var(--font-family-display)'
+                    }}>
+                      {settings.company_name || 'LEDGERPRO'}
+                    </div>
+                  )
                 )}
                 <h2 style={{ fontSize: printLayout === 'thermal' ? '1.1rem' : '1.5rem', margin: 0 }}>
                   {printLayout === 'thermal' ? 'RECEIPT' : 'TAX INVOICE'}
@@ -2385,8 +2422,29 @@ function BillsView({ bills, vendors, items, getHeaders, reload, settings }) {
             {/* Header info */}
             <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #000', paddingBottom: '16px', marginBottom: '16px' }}>
               <div>
-                {(selectedBill.bill.outlet_logo_url || settings.company_logo) && printLayout !== 'thermal' && (
-                  <img src={selectedBill.bill.outlet_logo_url || settings.company_logo} alt="Logo" style={{ maxHeight: '40px', marginBottom: '8px', objectFit: 'contain' }} onError={e => e.target.style.display = 'none'} />
+                {(selectedBill.bill.outlet_logo_url || settings.company_logo) ? (
+                  printLayout !== 'thermal' && (
+                    <img src={selectedBill.bill.outlet_logo_url || settings.company_logo} alt="Logo" style={{ maxHeight: '40px', marginBottom: '8px', objectFit: 'contain' }} onError={e => e.target.style.display = 'none'} />
+                  )
+                ) : (
+                  printLayout !== 'thermal' && (
+                    <div style={{
+                      padding: '6px 12px',
+                      background: 'rgba(99, 102, 241, 0.1)',
+                      color: 'var(--accent-primary)',
+                      fontWeight: '800',
+                      fontSize: '1.1rem',
+                      borderRadius: '4px',
+                      display: 'inline-block',
+                      marginBottom: '10px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                      borderLeft: '4px solid var(--accent-primary)',
+                      fontFamily: 'var(--font-family-display)'
+                    }}>
+                      {settings.company_name || 'LEDGERPRO'}
+                    </div>
+                  )
                 )}
                 <h2 style={{ fontSize: printLayout === 'thermal' ? '1.1rem' : '1.5rem', margin: 0 }}>
                   {printLayout === 'thermal' ? 'PURCHASE RECEIPT' : 'PURCHASE BILL'}
@@ -3036,6 +3094,7 @@ function StockView({ getHeaders }) {
   const [stockValuation, setStockValuation] = useState([]);
   const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     loadStockData();
@@ -3057,16 +3116,26 @@ function StockView({ getHeaders }) {
 
   if (loading) return <p style={{ color: 'var(--text-secondary)' }}>Calculating stock logs...</p>;
 
+  // Search filter
+  const filteredValuation = stockValuation.filter(sv => 
+    sv.item_name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredBatches = batches.filter(b => 
+    b.item_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (b.vendor_name && b.vendor_name.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
   const handleExportValuation = () => {
-    const headers = ['Item Name', 'Qty Remaining', 'Avg Purchase Cost', 'Total Asset Value', 'Base Selling Price'];
-    const mapping = ['item_name', 'total_quantity', 'avg_cost', 'total_value', 'selling_price'];
-    exportToCSV(stockValuation, headers, mapping, 'stock_valuation_summary');
+    const headers = ['Item Name', 'Qty Purchased', 'Qty Sold', 'Qty Remaining', 'Avg Purchase Cost', 'Total Asset Value', 'Base Selling Price'];
+    const mapping = ['item_name', 'total_purchased', 'total_sold', 'total_quantity', 'avg_cost', 'total_value', 'selling_price'];
+    exportToCSV(filteredValuation, headers, mapping, 'stock_valuation_summary');
   };
 
   const handleExportBatches = () => {
     const headers = ['Batch ID', 'Item Name', 'Purchase Date', 'Remaining Qty', 'Purchase Cost', 'Supplier'];
     const mapping = ['id', 'item_name', 'purchase_date', 'quantity_remaining', 'purchase_rate', 'vendor_name'];
-    exportToCSV(batches, headers, mapping, 'stock_batches_log');
+    exportToCSV(filteredBatches, headers, mapping, 'stock_batches_log');
   };
 
   return (
@@ -3084,6 +3153,49 @@ function StockView({ getHeaders }) {
         </div>
       </div>
 
+      {/* KPI Cards Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }} className="no-print">
+        <div className="kpi-card">
+          <div className="kpi-icon" style={{ background: 'rgba(99,102,241,0.15)' }}>
+            <Layers size={22} style={{ color: '#6366f1' }} />
+          </div>
+          <div>
+            <p className="kpi-label">Remaining stock</p>
+            <p className="kpi-value">{filteredValuation.reduce((acc, v) => acc + v.total_quantity, 0).toLocaleString()} units</p>
+          </div>
+        </div>
+        <div className="kpi-card">
+          <div className="kpi-icon" style={{ background: 'rgba(16,185,129,0.15)' }}>
+            <TrendingUp size={22} style={{ color: '#10b981' }} />
+          </div>
+          <div>
+            <p className="kpi-label">Total Sold (Qty)</p>
+            <p className="kpi-value">{filteredValuation.reduce((acc, v) => acc + v.total_sold, 0).toLocaleString()} units</p>
+          </div>
+        </div>
+        <div className="kpi-card">
+          <div className="kpi-icon" style={{ background: 'rgba(245,158,11,0.15)' }}>
+            <Receipt size={22} style={{ color: '#f59e0b' }} />
+          </div>
+          <div>
+            <p className="kpi-label">Asset Valuation</p>
+            <p className="kpi-value">₹{filteredValuation.reduce((acc, v) => acc + v.total_value, 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Search Input */}
+      <div className="no-print" style={{ marginBottom: '24px' }}>
+        <input 
+          type="text" 
+          className="form-control" 
+          placeholder="Search inventory items by name..." 
+          value={searchQuery} 
+          onChange={e => setSearchQuery(e.target.value)} 
+          style={{ maxWidth: '400px', marginBottom: 0 }}
+        />
+      </div>
+
       <div className="card" style={{ marginBottom: '40px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <h3 style={{ margin: 0 }}>Stock Valuation Summary</h3>
@@ -3094,22 +3206,26 @@ function StockView({ getHeaders }) {
             <thead>
               <tr>
                 <th>Item Name</th>
+                <th>Qty Purchased</th>
+                <th>Qty Sold</th>
                 <th>Qty Remaining</th>
                 <th>Avg Purchase Cost</th>
                 <th>Total Asset Value</th>
                 <th>Base Selling Price</th>
-                <th>Potential Profit Margin</th>
+                <th>Potential Margin</th>
               </tr>
             </thead>
             <tbody>
-              {stockValuation.map(sv => {
-                const margin = sv.total_quantity > 0 
+              {filteredValuation.map(sv => {
+                const margin = sv.selling_price > 0 
                   ? (((sv.selling_price - sv.avg_cost) / sv.selling_price) * 100).toFixed(1)
                   : '0.0';
                 return (
                   <tr key={sv.item_id}>
                     <td><strong>{sv.item_name}</strong></td>
-                    <td>{sv.total_quantity} pcs</td>
+                    <td>{sv.total_purchased} pcs</td>
+                    <td style={{ color: 'var(--success)', fontWeight: '600' }}>{sv.total_sold} pcs</td>
+                    <td style={{ fontWeight: 'bold' }}>{sv.total_quantity} pcs</td>
                     <td>₹{sv.avg_cost.toFixed(2)}</td>
                     <td>₹{sv.total_value.toFixed(2)}</td>
                     <td>₹{sv.selling_price.toFixed(2)}</td>
@@ -3142,7 +3258,7 @@ function StockView({ getHeaders }) {
               </tr>
             </thead>
             <tbody>
-              {batches.map(b => (
+              {filteredBatches.map(b => (
                 <tr key={b.id} style={{ opacity: b.quantity_remaining === 0 ? 0.5 : 1 }}>
                   <td>#{b.id}</td>
                   <td><strong>{b.item_name}</strong></td>
@@ -3349,8 +3465,9 @@ function ReportsView({ getHeaders }) {
 }
 
 // ==================== VIEW: SETTINGS ====================
-function SettingsView({ settings, getHeaders, reload, token, outlets, theme, setTheme }) {
-  const [activeSubTab, setActiveSubTab] = useState('profile');
+function SettingsView({ settings, getHeaders, reload, token, outlets, theme, setTheme, user }) {
+  const isAdmin = user?.role === 'Admin';
+  const [activeSubTab, setActiveSubTab] = useState(isAdmin ? 'profile' : 'appearance');
   const [companyName, setCompanyName] = useState('');
   const [companyAddress, setCompanyAddress] = useState('');
   const [companyGstin, setCompanyGstin] = useState('');
@@ -3628,12 +3745,12 @@ function SettingsView({ settings, getHeaders, reload, token, outlets, theme, set
       {/* Sub Tabs */}
       <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', marginBottom: '24px', gap: '4px', flexWrap: 'wrap' }}>
         {[
-          { id: 'profile', label: 'Business Profile', icon: <Building2 size={15} /> },
+          { id: 'profile', label: 'Business Profile', icon: <Building2 size={15} />, adminOnly: true },
           { id: 'appearance', label: 'Appearance', icon: <Palette size={15} /> },
-          { id: 'staff', label: 'Staff Management', icon: <Users size={15} /> },
-          { id: 'outlets', label: 'Outlet Management', icon: <Store size={15} /> },
-          { id: 'backup', label: 'Data & Backup', icon: <Database size={15} /> },
-        ].map(tab => (
+          { id: 'staff', label: 'Staff Management', icon: <Users size={15} />, adminOnly: true },
+          { id: 'outlets', label: 'Outlet Management', icon: <Store size={15} />, adminOnly: true },
+          { id: 'backup', label: 'Data & Backup', icon: <Database size={15} />, adminOnly: true },
+        ].filter(tab => !tab.adminOnly || user?.role === 'Admin').map(tab => (
           <button key={tab.id} onClick={() => setActiveSubTab(tab.id)} style={{ background: 'none', border: 'none', borderBottom: activeSubTab === tab.id ? '2px solid var(--accent-primary)' : '2px solid transparent', color: activeSubTab === tab.id ? 'var(--text-primary)' : 'var(--text-secondary)', padding: '12px 16px', cursor: 'pointer', fontWeight: activeSubTab === tab.id ? '600' : '400', display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', transition: 'all 0.15s' }}>
             {tab.icon}
             <span>{tab.label}</span>
@@ -3641,7 +3758,7 @@ function SettingsView({ settings, getHeaders, reload, token, outlets, theme, set
         ))}
       </div>
 
-      {activeSubTab === 'profile' && (
+      {activeSubTab === 'profile' && isAdmin && (
         <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '30px' }}>
           <div className="card">
             {msg && <div style={{ background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '10px', borderRadius: 'var(--border-radius-sm)', marginBottom: '16px', fontSize: '0.9rem' }}>{msg}</div>}
@@ -3794,7 +3911,7 @@ function SettingsView({ settings, getHeaders, reload, token, outlets, theme, set
       )}
 
       {/* ── Data & Backup Tab ── */}
-      {activeSubTab === 'backup' && (
+      {activeSubTab === 'backup' && isAdmin && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
           <div>
             <div className="card" style={{ marginBottom: '20px' }}>
@@ -3852,7 +3969,7 @@ function SettingsView({ settings, getHeaders, reload, token, outlets, theme, set
         </div>
       )}
 
-      {activeSubTab === 'staff' && (
+      {activeSubTab === 'staff' && isAdmin && (
         <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '30px' }}>
           {/* User List */}
           <div className="card">
@@ -3929,7 +4046,7 @@ function SettingsView({ settings, getHeaders, reload, token, outlets, theme, set
         </div>
       )}
 
-      {activeSubTab === 'outlets' && (
+      {activeSubTab === 'outlets' && isAdmin && (
         <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '30px' }}>
           {/* Outlets List */}
           <div className="card">

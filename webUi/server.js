@@ -1120,6 +1120,24 @@ app.get('/api/stock/valuation', authenticateToken, async (req, res) => {
 
       const avgCost = totalQty > 0 ? (totalValue / totalQty) : 0;
 
+      // Total sold (excluding Drafts)
+      const [soldRows] = await pool.query(`
+        SELECT SUM(ii.quantity) as sold 
+        FROM invoice_items ii 
+        JOIN invoices i ON ii.invoice_id = i.id 
+        WHERE ii.item_id = ? AND i.status != 'Draft'
+      `, [item.id]);
+      const totalSold = parseFloat(soldRows[0].sold) || 0;
+
+      // Total purchased (excluding Drafts)
+      const [purchasedRows] = await pool.query(`
+        SELECT SUM(bi.quantity) as purchased 
+        FROM bill_items bi 
+        JOIN bills b ON bi.bill_id = b.id 
+        WHERE bi.item_id = ? AND b.status != 'Draft'
+      `, [item.id]);
+      const totalPurchased = parseFloat(purchasedRows[0].purchased) || 0;
+
       summary.push({
         item_id: item.id,
         item_name: item.name,
@@ -1129,7 +1147,9 @@ app.get('/api/stock/valuation', authenticateToken, async (req, res) => {
         sp3: item.sp3 || 0,
         total_quantity: totalQty,
         total_value: parseFloat(totalValue.toFixed(2)),
-        avg_cost: parseFloat(avgCost.toFixed(2))
+        avg_cost: parseFloat(avgCost.toFixed(2)),
+        total_sold: totalSold,
+        total_purchased: totalPurchased
       });
     }
 
@@ -1225,13 +1245,32 @@ app.get('/api/reports/dashboard', authenticateToken, async (req, res) => {
     `;
     const [monthlySales] = await pool.query(monthlySql, monthlyParams);
 
+    // Monthly Purchases Chart Data
+    let monthlyPurchSql = `
+      SELECT DATE_FORMAT(date, '%Y-%m') as month, SUM(grand_total) as total 
+      FROM bills 
+      WHERE status != 'Draft'
+    `;
+    const monthlyPurchParams = [];
+    if (hasOutlet) {
+      monthlyPurchSql += " AND outlet_id = ?";
+      monthlyPurchParams.push(parseInt(outlet_id));
+    }
+    monthlyPurchSql += `
+      GROUP BY month 
+      ORDER BY month DESC 
+      LIMIT 6
+    `;
+    const [monthlyPurch] = await pool.query(monthlyPurchSql, monthlyPurchParams);
+
     res.json({
       sales: salesResult[0].total || 0,
       purchases: purchaseResult[0].total || 0,
       receivables: outstandingReceivables,
       stockValue,
       lowStockCount: lowStock[0].count,
-      monthlySales: monthlySales.reverse()
+      monthlySales: monthlySales.reverse(),
+      monthlyPurchases: monthlyPurch.reverse()
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

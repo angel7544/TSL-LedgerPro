@@ -37,16 +37,16 @@
 }
 
 body.light-theme {
-  --bg-primary: #f1f5f9;
+  --bg-primary: #f3f4f6;
   --bg-secondary: #ffffff;
-  --bg-tertiary: #f8fafc;
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
-  --border-color: #e2e8f0;
-  --accent-primary: #6366f1;
-  --accent-secondary: #8b5cf6;
-  --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  --bg-tertiary: #f9fafb;
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-muted: #9ca3af;
+  --border-color: #e5e7eb;
+  --accent-primary: #4d7c0f;
+  --accent-secondary: #3f620e;
+  --accent-gradient: linear-gradient(135deg, #4d7c0f 0%, #3f620e 100%);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.05);
   --shadow-lg: 0 12px 30px rgba(0, 0, 0, 0.08);
@@ -291,7 +291,7 @@ tr:hover {
   display: flex;
   min-height: 100vh;
   width: 100%;
-  background-image: url('/assets/loginUi.png');
+  background-image: url('/loginUi.png');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -459,6 +459,17 @@ tr:hover {
 
 /* ── Print Media Style Customizations ── */
 @media print {
+  /* Reset theme variables to high contrast light print styles */
+  :root, body, body.light-theme, body.theme-ocean, body.theme-emerald, body.theme-rose, body.theme-slate {
+    --bg-primary: #ffffff !important;
+    --bg-secondary: #ffffff !important;
+    --bg-tertiary: #f8fafc !important;
+    --text-primary: #000000 !important;
+    --text-secondary: #333333 !important;
+    --text-muted: #666666 !important;
+    --border-color: #cccccc !important;
+  }
+
   /* Ensure parent containers flow naturally for printing */
   html, body, #root, #root > div {
     background: #ffffff !important;
