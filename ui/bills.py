@@ -842,9 +842,40 @@ class CreateBillDialog(QDialog):
     def add_item_row(self, item_data=None):
         row = self.items_table.rowCount()
         self.items_table.insertRow(row)
+        self.items_table.setRowHeight(row, 38)
+        
+        combo_style = """
+            QComboBox {
+                background-color: white;
+                border: 1px solid #CBD5E1;
+                border-radius: 4px;
+                padding: 4px 6px;
+                font-size: 13px;
+                color: #0F172A;
+                min-height: 26px;
+            }
+            QComboBox QAbstractItemView {
+                min-width: 360px;
+                background-color: white;
+                selection-background-color: #2563EB;
+                selection-color: white;
+            }
+        """
+        line_edit_style = """
+            QLineEdit {
+                background-color: white;
+                border: 1px solid #CBD5E1;
+                border-radius: 4px;
+                padding: 4px 6px;
+                font-size: 13px;
+                color: #0F172A;
+                min-height: 26px;
+            }
+        """
         
         # Item Combo
         combo = QComboBox()
+        combo.setStyleSheet(combo_style)
         combo.setEditable(True)
         combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
         
@@ -869,13 +900,36 @@ class CreateBillDialog(QDialog):
         
         # Default values
         if item_data:
+            # Robust Item Lookup & Fallback Addition
             idx = -1
-            for i in range(combo.count()):
-                if combo.itemData(i)['id'] == item_data['item_id']:
-                    idx = i
-                    break
+            target_id = None
+            if 'item_id' in item_data and item_data['item_id'] is not None:
+                try: target_id = int(item_data['item_id'])
+                except (ValueError, TypeError): pass
+            elif 'id' in item_data and item_data['id'] is not None:
+                try: target_id = int(item_data['id'])
+                except (ValueError, TypeError): pass
+
+            if target_id is not None:
+                for i in range(combo.count()):
+                    item_obj = combo.itemData(i)
+                    if item_obj and 'id' in item_obj:
+                        try:
+                            if int(item_obj['id']) == target_id:
+                                idx = i
+                                break
+                        except (ValueError, TypeError):
+                            pass
+                            
+            if idx < 0 and target_id is not None:
+                item_name = item_data.get('item_name', item_data.get('name', f"Item #{target_id}"))
+                combo.addItem(item_name, {'id': target_id, 'name': item_name, 'purchase_price': item_data.get('rate', 0.0), 'gst_rate': item_data.get('gst_percent', 0.0)})
+                idx = combo.count() - 1
+            
+            combo.blockSignals(True)
             if idx >= 0:
                 combo.setCurrentIndex(idx)
+            combo.blockSignals(False)
             
             rate = str(item_data['rate'])
             gst = str(item_data['gst_percent'])
@@ -893,9 +947,14 @@ class CreateBillDialog(QDialog):
         combo.currentIndexChanged.connect(lambda idx, r=row: self.on_item_changed(r))
         
         qty = QLineEdit(qty_val)
+        qty.setStyleSheet(line_edit_style)
         rate_edit = QLineEdit(rate)
+        rate_edit.setStyleSheet(line_edit_style)
         gst_edit = QLineEdit(gst)
+        gst_edit.setStyleSheet(line_edit_style)
+        
         total = QLabel("0.00")
+        total.setStyleSheet("font-size: 13px; font-weight: bold; color: #0F172A;")
         
         # Delete button
         del_btn = QPushButton("")

@@ -16,10 +16,34 @@ class AddUserDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Add New System User")
-        self.setFixedWidth(420)
+        self.setFixedWidth(460)
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #F8FAFC;
+            }
+            QLabel {
+                font-size: 13px;
+                font-weight: bold;
+                color: #334155;
+            }
+            QLineEdit, QComboBox {
+                background-color: white;
+                border: 1px solid #CBD5E1;
+                border-radius: 6px;
+                padding: 6px 10px;
+                font-size: 13px;
+                color: #0F172A;
+                min-height: 28px;
+            }
+            QLineEdit:focus, QComboBox:focus {
+                border-color: #2563EB;
+            }
+        """)
         
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
         form_layout = QFormLayout()
+        form_layout.setSpacing(12)
         
         self.name_input = QLineEdit()
         self.name_input.setPlaceholderText("e.g. John Doe")
@@ -305,6 +329,7 @@ class UserManagementPage(QWidget):
         logs = get_audit_logs(limit=100)
         self.audit_table.setRowCount(len(logs))
         for row_idx, log in enumerate(logs):
+            self.audit_table.setRowHeight(row_idx, 36)
             self.audit_table.setItem(row_idx, 0, QTableWidgetItem(str(row_idx + 1)))
             self.audit_table.setItem(row_idx, 1, QTableWidgetItem(str(log.get('timestamp', ''))[:19]))
             self.audit_table.setItem(row_idx, 2, QTableWidgetItem(str(log.get('user_name', 'System'))))
@@ -338,6 +363,7 @@ class UserManagementPage(QWidget):
         }
         
         for row_idx, user in enumerate(filtered):
+            self.table.setRowHeight(row_idx, 38)
             self.table.setItem(row_idx, 0, QTableWidgetItem(str(row_idx + 1)))
             
             name_item = QTableWidgetItem(user.get('name', ''))

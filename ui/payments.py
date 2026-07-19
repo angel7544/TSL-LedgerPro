@@ -91,6 +91,7 @@ class PaymentsPage(QWidget):
         self.table.setRowCount(len(rows))
         
         for row_idx, row in enumerate(rows):
+            self.table.setRowHeight(row_idx, 38)
             self.table.setItem(row_idx, 0, QTableWidgetItem(str(row['date'])))
             self.table.setItem(row_idx, 1, QTableWidgetItem(row['payment_number'] or ""))
             self.table.setItem(row_idx, 2, QTableWidgetItem(row['party_name']))
@@ -103,18 +104,21 @@ class PaymentsPage(QWidget):
             # Action buttons
             btn_widget = QWidget()
             btn_layout = QHBoxLayout(btn_widget)
-            btn_layout.setContentsMargins(0, 0, 0, 0)
+            btn_layout.setContentsMargins(4, 2, 4, 2)
+            btn_layout.setSpacing(6)
             
             edit_btn = QPushButton("Edit")
+            edit_btn.setStyleSheet("background-color: #F59E0B; color: white; border-radius: 4px; padding: 4px 8px; font-weight: bold;")
             edit_btn.clicked.connect(lambda checked, r=row['id']: self.edit_payment(r))
             btn_layout.addWidget(edit_btn)
             
             view_btn = QPushButton("View")
+            view_btn.setStyleSheet("background-color: #06B6D4; color: white; border-radius: 4px; padding: 4px 8px; font-weight: bold;")
             view_btn.clicked.connect(lambda checked, r=row['id']: self.view_payment(r))
             btn_layout.addWidget(view_btn)
             
             del_btn = QPushButton("Delete")
-            del_btn.setStyleSheet("color: white; background-color: #EF4444;")
+            del_btn.setStyleSheet("color: white; background-color: #EF4444; border-radius: 4px; padding: 4px 8px; font-weight: bold;")
             del_btn.clicked.connect(lambda checked, r=row['id']: self.delete_payment_ui(r))
             btn_layout.addWidget(del_btn)
             
@@ -455,9 +459,27 @@ class RecordPaymentDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Record Payment")
-        self.resize(900, 700)
-        # Enable Maximize Button
+        self.resize(920, 700)
         self.setWindowFlags(self.windowFlags() | Qt.WindowType.WindowMaximizeButtonHint)
+        self.setStyleSheet("""
+            QLabel {
+                font-size: 13px;
+                font-weight: bold;
+                color: #334155;
+            }
+            QLineEdit, QComboBox, QDoubleSpinBox, QDateEdit {
+                background-color: white;
+                border: 1px solid #CBD5E1;
+                border-radius: 6px;
+                padding: 6px 10px;
+                font-size: 13px;
+                color: #0F172A;
+                min-height: 28px;
+            }
+            QLineEdit:focus, QComboBox:focus, QDoubleSpinBox:focus, QDateEdit:focus {
+                border-color: #2563EB;
+            }
+        """)
         
         main_layout = QVBoxLayout()
         
@@ -711,6 +733,7 @@ class RecordPaymentDialog(QDialog):
         total_due = 0.0
         
         for r, inv in enumerate(self.invoices_data):
+            self.table.setRowHeight(r, 38)
             self.table.setItem(r, 0, QTableWidgetItem(str(inv['date'])))
             self.table.setItem(r, 1, QTableWidgetItem(inv['invoice_number']))
             self.table.setItem(r, 2, QTableWidgetItem(f"₹{inv['grand_total']:.2f}"))

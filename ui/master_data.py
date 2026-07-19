@@ -93,6 +93,7 @@ class BaseCRUDPage(QWidget):
             formatters = getattr(self, "column_formatters", {})
 
             for r, row in enumerate(filtered_rows):
+                self.table.setRowHeight(r, 38)
                 for c, col in enumerate(self.columns):
                     key = col[1]
                     val = row[key]
@@ -116,20 +117,21 @@ class BaseCRUDPage(QWidget):
                 # Action Buttons
                 action_widget = QWidget()
                 action_layout = QHBoxLayout(action_widget)
-                action_layout.setContentsMargins(0, 0, 0, 0)
+                action_layout.setContentsMargins(4, 2, 4, 2)
+                action_layout.setSpacing(6)
                 
                 if getattr(self, "view_button_enabled", False):
                     view_btn = QPushButton("View")
-                    view_btn.setStyleSheet("background-color: #06B6D4; color: white; border-radius: 4px; padding: 4px 8px;")
+                    view_btn.setStyleSheet("background-color: #06B6D4; color: white; border-radius: 4px; padding: 4px 10px; font-weight: bold; min-height: 24px;")
                     view_btn.clicked.connect(lambda checked, row_data=row: self.open_view_dialog(row_data))
                     action_layout.addWidget(view_btn)
                 
                 edit_btn = QPushButton("Edit")
-                edit_btn.setStyleSheet("background-color: #F59E0B; color: white; border-radius: 4px; padding: 4px 8px;")
+                edit_btn.setStyleSheet("background-color: #F59E0B; color: white; border-radius: 4px; padding: 4px 10px; font-weight: bold; min-height: 24px;")
                 edit_btn.clicked.connect(lambda checked, row_data=row: self.open_form_dialog(row_data))
                 
                 delete_btn = QPushButton("Delete")
-                delete_btn.setStyleSheet("background-color: #EF4444; color: white; border-radius: 4px; padding: 4px 8px;")
+                delete_btn.setStyleSheet("background-color: #EF4444; color: white; border-radius: 4px; padding: 4px 10px; font-weight: bold; min-height: 24px;")
                 delete_btn.clicked.connect(lambda checked, row_id=row['id']: self.delete_record(row_id))
                 
                 action_layout.addWidget(edit_btn)
@@ -161,7 +163,33 @@ class BaseCRUDPage(QWidget):
         dialog = QDialog(self)
         mode = "Edit" if record_summary else "Add"
         dialog.setWindowTitle(f"{mode} {self.title[:-1]}")
+        dialog.setFixedWidth(520)
+        dialog.setStyleSheet("""
+            QDialog {
+                background-color: #F8FAFC;
+            }
+            QLabel {
+                font-size: 13px;
+                font-weight: bold;
+                color: #334155;
+            }
+            QLineEdit, QComboBox {
+                background-color: white;
+                border: 1px solid #CBD5E1;
+                border-radius: 6px;
+                padding: 6px 10px;
+                font-size: 13px;
+                color: #0F172A;
+                min-height: 28px;
+            }
+            QLineEdit:focus, QComboBox:focus {
+                border-color: #2563EB;
+            }
+        """)
+        
         layout = QFormLayout(dialog)
+        layout.setSpacing(12)
+        layout.setContentsMargins(20, 20, 20, 20)
         inputs = {}
         
         record = None
@@ -196,17 +224,18 @@ class BaseCRUDPage(QWidget):
                 if record and db_col in record.keys() and record[db_col] is not None:
                     inp.setText(str(record[db_col]))
             
-            layout.addRow(label, inp)
+            layout.addRow(f"{label}:", inp)
             inputs[db_col] = inp
             
         record_id = record['id'] if record else None
         
         btn_box = QHBoxLayout()
         save_btn = QPushButton("Save")
-        save_btn.setStyleSheet("background-color: #2563EB; color: white; padding: 6px 12px; font-weight: bold;")
+        save_btn.setStyleSheet("background-color: #2563EB; color: white; padding: 8px 18px; font-weight: bold; border-radius: 6px;")
         save_btn.clicked.connect(lambda: self.save_data(dialog, inputs, record_id))
         
         cancel_btn = QPushButton("Cancel")
+        cancel_btn.setStyleSheet("background-color: #E2E8F0; color: #334155; padding: 8px 18px; font-weight: bold; border-radius: 6px;")
         cancel_btn.clicked.connect(dialog.reject)
         
         btn_box.addStretch()
