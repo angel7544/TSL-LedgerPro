@@ -38,7 +38,7 @@ class AboutWidget(QWidget):
         app_name.setStyleSheet("font-size: 28px; font-weight: bold; color: #2563EB;")
         left_layout.addWidget(app_name)
         
-        version_lbl = QLabel("Version 2.6.0 | Updated on: 2026-02-19")
+        version_lbl = QLabel("Version 3.5.0 | Updated on: 2026-07-19")
         version_lbl.setStyleSheet("font-size: 14px; color: #64748B; margin-bottom: 10px;")
         left_layout.addWidget(version_lbl)
         
@@ -64,31 +64,35 @@ class AboutWidget(QWidget):
         content_text.setFrameShape(QFrame.Shape.NoFrame)
         content_text.setStyleSheet("background-color: transparent; font-size: 14px; line-height: 1.6;")
         content_text.setHtml(
-            "<h3>Overview:</h3>"
-            "<p><b>LedgerPro Desktop</b> is a comprehensive, professional-grade accounting and inventory management solution designed for small and medium businesses. "
-            "Built with <b>Python</b> and <b>PySide6</b>, it offers a robust, secure, and offline-first desktop experience for managing finances, GST billing, stock, and reports.</p>"
+            "<h3>Overview (Version 3.5.0):</h3>"
+            "<p><b>LedgerPro Desktop v3.5.0</b> is a comprehensive, professional-grade accounting and inventory management solution designed for small and medium businesses. "
+            "Built with <b>Python</b>, <b>PySide6</b>, <b>SQLite3</b>, and <b>MySQL</b>, it delivers high performance, multi-user role access, thermal receipt printing, and offline-first reliability.</p>"
             
-            "<h3>Key Features:</h3>"
+            "<h3>What's New in Version 3.5.0:</h3>"
             "<ul>"
-            "<li><b>Dashboard:</b> Real-time overview of Sales, Purchases, and Receivables with visual charts.</li>"
-            "<li><b>Invoicing & Billing:</b> Create professional GST-compliant B2B/B2C invoices. Features include automatic tax calculations, stock deduction, PDF generation, and <b>Delete</b> functionality (which restores stock).</li>"
-            "<li><b>Purchases & Bills:</b> Manage vendor bills with <b>FIFO-based stock valuation</b>. Mark bills as 'Sent' or 'Paid', and delete bills to automatically reverse stock additions.</li>"
-            "<li><b>Inventory Management:</b> Real-time stock tracking using FIFO method. Stock is automatically adjusted when Invoices or Bills are created, updated, or deleted.</li>"
-            "<li><b>Payments & Credits:</b> Record partial payments, track balances, and manage <b>Customer/Vendor Credits</b>. Deleting a payment automatically updates the Invoice/Bill status.</li>"
-            "<li><b>Financial Management:</b> Track Accounts Receivable (AR) & Payable (AP), monitor expenses, and handle advance payments.</li>"
-            "<li><b>Reports & Analytics:</b> Generate detailed Sales/Purchase registers, GST Summaries, Stock Valuation, and Aging reports.</li>"
-            "<li><b>Data Management:</b> Secure local SQLite database. Includes <b>Backup (Export)</b>, <b>Restore (Import)</b>, and <b>Database Reset</b> options in Settings.</li>"
+            "<li><b>Multi-Role Access Control (RBAC):</b> Support for <b>Owner</b>, <b>Manager</b>, and <b>Staff</b> roles with distinct module permissions.</li>"
+            "<li><b>Dedicated User Management Screen:</b> Admin interface for creating users, updating roles, resetting passwords, and deactivating accounts.</li>"
+            "<li><b>Admin DB Setup Security:</b> Requires Administrator credentials to modify Database Configuration on the login screen.</li>"
+            "<li><b>Thermal POS Receipt Printing:</b> Support for <b>80mm (3-inch)</b> and <b>58mm (2-inch)</b> POS receipt generation for retail counters.</li>"
+            "<li><b>Audit Logging Engine:</b> Automatic tracking of system activities (invoices, payments, bills, stock edits) per user.</li>"
+            "<li><b>Enhanced MySQL Support:</b> Cross-database compatibility fixes and MySQL database backup exports.</li>"
+            "</ul>"
+
+            "<h3>Core Features:</h3>"
+            "<ul>"
+            "<li><b>Dashboard:</b> Real-time analytics of Sales, Purchases, and Receivables with visual charts.</li>"
+            "<li><b>Invoicing & Billing:</b> GST-compliant B2B/B2C invoices with automatic tax calculations, stock deduction, and PDF generation.</li>"
+            "<li><b>Purchases & Bills:</b> Manage vendor bills with <b>FIFO-based stock valuation</b>.</li>"
+            "<li><b>Inventory Management:</b> Real-time stock tracking using FIFO method.</li>"
+            "<li><b>Payments & Credits:</b> Record partial payments, track balances, and manage Customer/Vendor Credits.</li>"
+            "<li><b>Reports & Analytics:</b> Sales/Purchase registers, GST Summaries, Stock Valuation, and Aging reports.</li>"
             "</ul>"
             
             "<h3>Technical Stack:</h3>"
-            "<p>Built using <b>Python 3.11+</b>, <b>PySide6</b> (Qt for Python), <b>SQLite3</b>, and <b>ReportLab</b> for PDF generation.</p>"
+            "<p>Built using <b>Python 3.11+</b>, <b>PySide6</b> (Qt for Python), <b>SQLite3 / PyMySQL</b>, and <b>ReportLab</b>.</p>"
             
             "<p style='color: #64748B; font-size: 12px; margin-top: 20px;'>"
-            "<i>Disclaimer: This software is intended to assist with business accounting. "
-            "Users are responsible for verifying that all tax calculations and filings comply with the latest government regulations.</i></p>"
-            
-            "<p style='color: #64748B; font-size: 12px;'>"
-            "© 2026 LedgerPro Desktop. All rights reserved."
+            "<i>© 2026 LedgerPro Desktop. All rights reserved. Powered by Br31Technologies.</i>"
             "</p>"
         )
         
@@ -111,39 +115,34 @@ class AboutWidget(QWidget):
         faq_text.setStyleSheet("background-color: transparent; font-size: 14px; line-height: 1.6;")
         
         faq_content = """
-        <h3>Frequently Asked Questions</h3>
+        <h3>Frequently Asked Questions & User Guide (v3.5.0)</h3>
         
+        <p><b>Q: What is new in Version 3.5.0?</b><br>
+        A: Version 3.5.0 introduces <b>Multi-Role Access Control (Owner, Manager, Staff)</b>, a <b>User Management Screen</b>, <b>Admin Database Setup Protection</b>, <b>80mm & 58mm POS Thermal Receipt Printing</b>, <b>Audit Activity Logging</b>, and <b>MySQL Database Exports</b>.</p>
+        
+        <p><b>Q: How do user roles work?</b><br>
+        A: <br>
+        - <b>Owner</b>: Full system access, User Management screen, Financial Reports, and Database maintenance.<br>
+        - <b>Manager</b>: Access to operational modules (Invoices, Purchases, Payments, Stock, Reports), but restricted from User Management and Database Reset.<br>
+        - <b>Staff</b>: Operational access (Invoices, Purchases, Payments, Stock, Customers, Vendors, Items), but restricted from Reports, Settings, and User Management.</p>
+
+        <p><b>Q: How do I print thermal POS receipts (80mm / 58mm)?</b><br>
+        A: In the <b>Invoices</b> page, select any invoice and click <b>Print POS Receipt (80mm)</b> or <b>Print POS Receipt (58mm)</b>. This generates a compact receipt layout suitable for POS receipt printers.</p>
+
+        <p><b>Q: How is Database Configuration protected on the login screen?</b><br>
+        A: Clicking <b>⚙ Database Setup</b> prompts for Administrator (Owner) credentials to prevent unauthorized changes to database connection settings.</p>
+
         <p><b>Q: How do I create a new invoice?</b><br>
-        A: Go to the <b>Invoices</b> tab and click the <b>+ Create Invoice</b> button. Select a customer, add items, and save. This will automatically deduct stock.</p>
-        
+        A: Go to the <b>Invoices</b> tab and click <b>+ Create Invoice</b>. Select a customer, add items, and save. Stock is deducted automatically.</p>
+
         <p><b>Q: What happens when I delete an Invoice or Bill?</b><br>
-        A: <b>Deleting an Invoice</b> restores the stock quantity for the items. <b>Deleting a Bill</b> reduces the stock quantity (FIFO). <br>
-        <i>Note: You cannot delete an invoice or bill if it has recorded payments. Please delete the payments first.</i></p>
+        A: Deleting an Invoice restores stock. Deleting a Bill reduces stock. <i>Note: You must delete attached payment records before deleting an invoice or bill.</i></p>
 
         <p><b>Q: How is stock calculated?</b><br>
-        A: Stock is tracked using the <b>FIFO (First-In-First-Out)</b> method. When you sell an item, the cost is calculated based on the oldest available stock batch.</p>
-        
-        <p><b>Q: Can I record partial payments?</b><br>
-        A: Yes! In the <b>Payments</b> tab (or via Invoices/Bills page), click <b>Record Payment</b>. Enter the amount received, and the system will automatically allocate it to the oldest unpaid invoices. You can also manually adjust the allocation.</p>
-        
-        <p><b>Q: How do I handle customer credits/advances?</b><br>
-        A: If a customer pays more than the invoice amount, the excess is stored as <b>Credits</b>. You can view available credits in the <b>Customers</b> list. These credits can be applied to future invoices.</p>
-        
-        <p><b>Q: Why don't I see my Bill in the 'Record Payment' screen?</b><br>
-        A: Ensure the Bill status is <b>'Sent'</b> (not 'Draft'). Draft bills must be marked as 'Due' or 'Sent' before payment can be recorded. Also, ensure you have selected the correct Vendor.</p>
+        A: Stock is tracked using the <b>FIFO (First-In-First-Out)</b> method to calculate COGS based on oldest available stock batches.</p>
 
         <p><b>Q: How do I backup or restore my data?</b><br>
-        A: Go to <b>Settings > Database</b>. Use <b>Backup Database (Export)</b> to save your data to a secure location. Use <b>Import Database (Restore)</b> to load a backup file. <br>
-        <i>Warning: Restoring will overwrite your current data.</i></p>
-        
-        <p><b>Q: Can I reset the application data?</b><br>
-        A: Yes. In <b>Settings > Database > Danger Zone</b>, you can choose to clear only Invoices, Bills, or Payments, or <b>Reset Entire Database</b> to start fresh. This action is irreversible.</p>
-
-        <p><b>Q: How do I update my company logo?</b><br>
-        A: Go to <b>Settings</b> and look for the <b>Company Logo</b> section. Upload a new image to reflect it on all invoices and reports.</p>
-        
-        <p><b>Q: Can I use this software offline?</b><br>
-        A: Absolutely! LedgerPro Desktop is designed to work fully offline without an internet connection.</p>
+        A: Go to <b>Settings > Database</b>. Use <b>Backup Database (Export)</b> to save a backup file (supports both SQLite and MySQL backends).</p>
         """
         
         faq_text.setHtml(faq_content)

@@ -242,11 +242,22 @@ class ViewInvoiceDialog(QDialog):
         
         # Buttons
         btn_layout = QHBoxLayout()
-        print_btn = QPushButton("Print / Save PDF")
+        print_btn = QPushButton("Print A4 PDF")
         print_btn.clicked.connect(self.print_pdf)
+
+        print_thermal_80_btn = QPushButton("🖨 POS Receipt (80mm)")
+        print_thermal_80_btn.setStyleSheet("background-color: #F1F5F9; border: 1px solid #CBD5E1; border-radius: 4px; padding: 6px 10px;")
+        print_thermal_80_btn.clicked.connect(lambda: self.print_thermal(80))
+        
+        print_thermal_58_btn = QPushButton("🖨 POS Receipt (58mm)")
+        print_thermal_58_btn.setStyleSheet("background-color: #F1F5F9; border: 1px solid #CBD5E1; border-radius: 4px; padding: 6px 10px;")
+        print_thermal_58_btn.clicked.connect(lambda: self.print_thermal(58))
+
         close_btn = QPushButton("Close")
         close_btn.clicked.connect(self.accept)
         
+        btn_layout.addWidget(print_thermal_80_btn)
+        btn_layout.addWidget(print_thermal_58_btn)
         btn_layout.addStretch()
         btn_layout.addWidget(print_btn)
         btn_layout.addWidget(close_btn)
@@ -260,13 +271,28 @@ class ViewInvoiceDialog(QDialog):
             if not os.path.exists(folder):
                 os.makedirs(folder)
                 
-            filename = os.path.join(folder, f"{self.invoice_data['invoice_number']}.pdf")
+            filename = os.path.join(folder, f"{self.invoice_data['invoice_number'].replace('/', '_')}.pdf")
             generate_invoice_pdf(self.invoice_data, filename)
             
             # Open PDF
             QDesktopServices.openUrl(QUrl.fromLocalFile(filename))
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to generate PDF: {str(e)}")
+
+    def print_thermal(self, width_mm):
+        try:
+            from pdf.thermal_generator import generate_thermal_receipt
+            folder = os.path.join(os.getcwd(), "invoices_pdf")
+            if not os.path.exists(folder):
+                os.makedirs(folder)
+                
+            inv_clean = self.invoice_data['invoice_number'].replace('/', '_')
+            filename = os.path.join(folder, f"receipt_{inv_clean}_{width_mm}mm.pdf")
+            generate_thermal_receipt(self.invoice_data, paper_width_mm=width_mm, output_path=filename)
+            
+            QDesktopServices.openUrl(QUrl.fromLocalFile(filename))
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to generate POS Receipt: {str(e)}")
 
 
 class CreateInvoiceDialog(QDialog):

@@ -178,6 +178,15 @@ def run_migrations():
     except Exception as e:
         print(f"Migration v6 failed: {e}")
 
+    # V7 (Audit logs table)
+    try:
+        import update_schema_v7
+        update_schema_v7.migrate()
+    except ImportError:
+        pass
+    except Exception as e:
+        print(f"Migration v7 failed: {e}")
+
 def execute_read_query(query, params=()):
     conn = get_connection()
     try:

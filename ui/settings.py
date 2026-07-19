@@ -531,7 +531,28 @@ class SettingsPage(QWidget):
     def backup_db(self):
         try:
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            shutil.copy("database/ledgerpro.db", f"backup_ledgerpro_{timestamp}.db")
-            QMessageBox.information(self, "Success", f"Backup created: backup_ledgerpro_{timestamp}.db")
+            from database.db import is_mysql, execute_read_query
+            
+            if is_mysql():
+                filename = f"backup_mysql_ledgerpro_{timestamp}.json"
+                tables = ["users", "customers", "vendors", "items", "invoices", "invoice_items", "bills", "bill_items", "payments", "settings", "audit_logs"]
+                dump_data = {}
+                for t in tables:
+                    try:
+                        rows = execute_read_query(f"SELECT * FROM `{t}`")
+                        dump_data[t] = [dict(r) for r in rows]
+                    except Exception as e:
+                        print(f"Backup table {t} warning: {e}")
+                
+                with open(filename, 'w', encoding='utf-8') as f:
+                    json.dump(dump_data, f, indent=2, default=str)
+                QMessageBox.information(self, "Success", f"MySQL Backup created: {filename}")
+            else:
+                filename = f"backup_ledgerpro_{timestamp}.db"
+                if os.path.exists("database/ledgerpro.db"):
+                    shutil.copy("database/ledgerpro.db", filename)
+                    QMessageBox.information(self, "Success", f"SQLite Backup created: {filename}")
+                else:
+                    QMessageBox.warning(self, "Backup Warning", "Local database file ledgerpro.db not found.")
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))

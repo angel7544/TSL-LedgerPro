@@ -201,7 +201,7 @@ class LoginWindow(QWidget):
         credits.setStyleSheet("font-size: 12px; color: #AACCFF; line-height: 1.5;")
         left_layout.addWidget(credits)
         
-        version = QLabel("Version 2.6.0")
+        version = QLabel("Version 3.5.0")
         version.setAlignment(Qt.AlignmentFlag.AlignCenter)
         version.setStyleSheet("font-size: 11px; color: #88AADD; margin-top: 10px;")
         left_layout.addWidget(version)
@@ -427,7 +427,7 @@ class SignupWindow(QWidget):
         credits.setStyleSheet("font-size: 12px; color: #AACCFF; line-height: 1.5;")
         left_layout.addWidget(credits)
         
-        version = QLabel("Version 2.6.0")
+        version = QLabel("Version 3.5.0")
         version.setAlignment(Qt.AlignmentFlag.AlignCenter)
         version.setStyleSheet("font-size: 11px; color: #88AADD; margin-top: 10px;")
         left_layout.addWidget(version)

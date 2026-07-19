@@ -1,13 +1,13 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
     QLineEdit, QMessageBox, QTableWidget, QTableWidgetItem, QHeaderView,
-    QComboBox, QDialog, QFormLayout, QFrame, QDialogButtonBox, QMenu
+    QComboBox, QDialog, QFormLayout, QFrame, QDialogButtonBox, QMenu, QTabWidget
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QFont
 from auth.auth_logic import (
     get_all_users, create_user_by_admin, update_user_role,
-    update_password, delete_user
+    update_password, delete_user, get_audit_logs
 )
 from auth.session import Session
 
@@ -185,6 +185,13 @@ class UserManagementPage(QWidget):
         
         layout.addLayout(header_layout)
         
+        self.tabs = QTabWidget()
+        
+        # --- Tab 1: User Accounts ---
+        self.users_tab = QWidget()
+        users_tab_layout = QVBoxLayout(self.users_tab)
+        users_tab_layout.setContentsMargins(0, 10, 0, 0)
+        
         # Controls / Filter Bar
         filter_layout = QHBoxLayout()
         self.search_input = QLineEdit()
@@ -193,7 +200,6 @@ class UserManagementPage(QWidget):
         self.search_input.setStyleSheet("padding: 8px 12px; border: 1px solid #CBD5E1; border-radius: 6px;")
         self.search_input.textChanged.connect(self.filter_users)
         filter_layout.addWidget(self.search_input)
-        
         filter_layout.addStretch()
         
         refresh_btn = QPushButton("🔄 Refresh")
@@ -202,9 +208,9 @@ class UserManagementPage(QWidget):
         refresh_btn.clicked.connect(self.load_users)
         filter_layout.addWidget(refresh_btn)
         
-        layout.addLayout(filter_layout)
+        users_tab_layout.addLayout(filter_layout)
         
-        # Table
+        # User Table
         self.table = QTableWidget()
         self.table.setColumnCount(6)
         self.table.setHorizontalHeaderLabels(["ID", "Name", "Email", "Role", "Created At", "Actions"])
@@ -230,14 +236,74 @@ class UserManagementPage(QWidget):
                 border-bottom: 1px solid #E2E8F0;
             }
         """)
+        users_tab_layout.addWidget(self.table)
+        self.tabs.addTab(self.users_tab, "User Accounts")
+
+        # --- Tab 2: Audit Logs ---
+        self.audit_tab = QWidget()
+        audit_layout = QVBoxLayout(self.audit_tab)
+        audit_layout.setContentsMargins(0, 10, 0, 0)
         
-        layout.addWidget(self.table)
+        audit_header = QHBoxLayout()
+        audit_info = QLabel("Activity trail tracking system actions, user updates, and security events.")
+        audit_info.setStyleSheet("color: #64748B; font-size: 13px;")
+        audit_header.addWidget(audit_info)
+        audit_header.addStretch()
+        
+        refresh_audit_btn = QPushButton("🔄 Refresh Logs")
+        refresh_audit_btn.setStyleSheet("padding: 8px 14px; background-color: #F1F5F9; border: 1px solid #CBD5E1; border-radius: 6px;")
+        refresh_audit_btn.clicked.connect(self.load_audit_logs)
+        audit_header.addWidget(refresh_audit_btn)
+        
+        audit_layout.addLayout(audit_header)
+        
+        self.audit_table = QTableWidget()
+        self.audit_table.setColumnCount(6)
+        self.audit_table.setHorizontalHeaderLabels(["ID", "Timestamp", "User", "Action", "Module", "Details"])
+        self.audit_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Stretch)
+        self.audit_table.setStyleSheet("""
+            QTableWidget {
+                background-color: white;
+                border: 1px solid #E2E8F0;
+                border-radius: 8px;
+                gridline-color: #F1F5F9;
+            }
+            QHeaderView::section {
+                background-color: #F8FAFC;
+                padding: 10px;
+                font-weight: bold;
+                color: #475569;
+                border: none;
+                border-bottom: 1px solid #E2E8F0;
+            }
+        """)
+        audit_layout.addWidget(self.audit_table)
+        self.tabs.addTab(self.audit_tab, "Audit Activity Logs")
+
+        layout.addWidget(self.tabs)
         
         self.all_users = []
         self.load_users()
+        self.load_audit_logs()
 
     def refresh_data(self):
         self.load_users()
+        self.load_audit_logs()
+
+    def load_audit_logs(self):
+        logs = get_audit_logs(limit=100)
+        self.audit_table.setRowCount(len(logs))
+        for row_idx, log in enumerate(logs):
+            self.audit_table.setItem(row_idx, 0, QTableWidgetItem(str(log.get('id', ''))))
+            self.audit_table.setItem(row_idx, 1, QTableWidgetItem(str(log.get('timestamp', ''))[:19]))
+            self.audit_table.setItem(row_idx, 2, QTableWidgetItem(str(log.get('user_name', 'System'))))
+            
+            action_item = QTableWidgetItem(str(log.get('action', '')))
+            action_item.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
+            self.audit_table.setItem(row_idx, 3, action_item)
+            
+            self.audit_table.setItem(row_idx, 4, QTableWidgetItem(str(log.get('module', ''))))
+            self.audit_table.setItem(row_idx, 5, QTableWidgetItem(str(log.get('details', ''))))
 
     def load_users(self):
         self.all_users = get_all_users()

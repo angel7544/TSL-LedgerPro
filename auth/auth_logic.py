@@ -98,7 +98,32 @@ def delete_user(user_id):
     """Deletes a user account."""
     try:
         execute_write_query("DELETE FROM users WHERE id = ?", (user_id,))
+        log_audit_action("DELETE_USER", "User Management", user_id, "User account deleted")
         return True
     except Exception as e:
         print(f"Delete user error: {e}")
         return False
+
+def log_audit_action(action, module, record_id="", details=""):
+    """Logs user action into audit_logs table."""
+    try:
+        from auth.session import Session
+        user = Session.get_instance().get_user()
+        user_id = user.get('id') if user else None
+        user_name = user.get('name', 'System') if user else 'System'
+        
+        execute_write_query(
+            "INSERT INTO audit_logs (user_id, user_name, action, module, record_id, details) VALUES (?, ?, ?, ?, ?, ?)",
+            (user_id, user_name, action, module, str(record_id), str(details))
+        )
+    except Exception as e:
+        print(f"Audit log error: {e}")
+
+def get_audit_logs(limit=100):
+    """Retrieves recent audit log entries."""
+    try:
+        rows = execute_read_query("SELECT * FROM audit_logs ORDER BY id DESC LIMIT ?", (limit,))
+        return [dict(r) for r in rows]
+    except Exception as e:
+        print(f"Get audit logs error: {e}")
+        return []

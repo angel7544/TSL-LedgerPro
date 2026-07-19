@@ -246,7 +246,7 @@ export default function App() {
               <p>Developed for The Space Labs</p>
               <p>Updated by Angel (Mehul) Singh</p>
               <p>Powered by Br31Technologies</p>
-              <p style={{ marginTop: '12px', opacity: 0.8 }}>Version 2.6.0</p>
+              <p style={{ marginTop: '12px', opacity: 0.8 }}>Version 3.5.0</p>
             </div>
           </div>
         </div>
