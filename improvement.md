@@ -1,149 +1,150 @@
-# LedgerPro Desktop - Codebase Analysis, System Improvements & Feature Roadmap
+# LedgerPro Desktop - Codebase Architecture, System Improvements & Technical Roadmap (MySQL Edition)
 
-This document presents a comprehensive evaluation of **LedgerPro Desktop**, covering code health analysis, identified potential issues, architectural recommendations, proposed feature enhancements for **Staff**, **Managers**, and **Administrators**, and a detailed implementation specification for **Thermal Receipt Printer Support (80mm / 58mm POS Receipts)**.
-
----
-
-## 1. Codebase Architecture & Code Health Analysis
-
-### Current Architecture Strengths
-- **Modular GUI Architecture**: Clean separation between PySide6 UI views (`ui/`), database engine abstraction (`database/`), business logic modules (`modules/`), and ReportLab PDF document generators (`pdf/`).
-- **Cross-Database Abstraction Layer**: Unified query runner `execute_read_query()` and `execute_write_query()` supporting both local **SQLite (WAL mode)** and remote/network **MySQL** database engines.
-- **FIFO Inventory Valuation Engine**: `modules/stock_fifo.py` accurately tracks inventory batches, COGS (Cost of Goods Sold), and batch deduction across invoices and purchase bills.
-- **Role-Based Access Control (RBAC)**: Role checks (`Owner`, `Manager`, `Staff`) integrated into `auth/session.py` and `ui/main_window.py` for UI item filtering and feature restriction.
+This document presents an engineering evaluation, architectural roadmap, and technical improvement specification for **LedgerPro Desktop Application** built with **Python (PySide6)** and backed by an enterprise **MySQL Database Engine**.
 
 ---
 
-## 2. Identified Technical Issues & Code Health Improvements
+## 🏗️ System Architecture & Data Pipeline (MySQL Engine)
 
-### 1. Database Connection Pooling (MySQL)
-- **Observation**: `get_connection()` in `database/db.py` creates a brand-new `pymysql.connect(...)` socket connection on every single query execution and closes it in a `finally:` block.
-- **Impact**: On high-frequency operations or multi-user networks, repeated TCP handshake overhead slows down UI response time.
-- **Recommendation**: Implement PyMySQL connection pooling using `dbutils.pooled_db` or a light persistent connection wrapper with auto-reconnect logic.
+LedgerPro is structured into a clean multi-layer desktop architecture. The PySide6 Qt GUI communicates with pure-Python business logic services, which query the central **MySQL Database** via PyMySQL.
 
-### 2. Main Thread UI Blocking on Heavy Queries / PDF Exports
-- **Observation**: PDF generation (`pdf/generator.py`) and large report queries run synchronously on the main Qt GUI thread.
-- **Impact**: UI can momentarily freeze during generation of multi-page PDFs or heavy annual GST reports.
-- **Recommendation**: Wrap heavy ReportLab PDF rendering and Excel export functions in `QThread` or `QRunnable` worker threads with progress indicators.
+```mermaid
+graph TD
+    subgraph View Layer ["PySide6 Qt GUI Thread"]
+        V_Dash["Dashboard Screen"]
+        V_POS["Counter POS Screen"]
+        V_Inv["Sales Invoicing"]
+        V_Stock["FIFO Inventory"]
+        V_Audit["Admin Audit Monitor"]
+    end
 
-### 3. Database Backup Functionality for MySQL
-- **Observation**: `backup_db()` in `ui/settings.py` copies `database/ledgerpro.db` via `shutil.copy()`.
-- **Impact**: While this works for SQLite, it does not backup remote MySQL database tables.
-- **Recommendation**: Update `backup_db()` to check `is_mysql()` and trigger `mysqldump` or generate a serialized JSON/SQL dump of all tables when connected to MySQL.
+    subgraph Service Layer ["Python Business Logic Services"]
+        S_FIFO["stock_fifo.py (FIFO Cost Engine)"]
+        S_Inv["invoice.py (GST Tax Calculation)"]
+        S_Auth["auth_logic.py (RBAC & Audit Logging)"]
+        S_PDF["pdf/generator.py & thermal_generator.py"]
+    end
 
-### 4. Audit Trail & Activity Logging
-- **Observation**: Changes to invoices, payments, vendor bills, and stock adjustments are modified directly without logging which user performed the action.
-- **Impact**: Owners cannot trace who deleted an invoice, modified stock quantities, or recorded a payment.
-- **Recommendation**: Add an `audit_logs` table tracking timestamp, user ID, user name, action type (`CREATE`, `UPDATE`, `DELETE`), module, and record ID.
+    subgraph Database Layer ["MySQL Database Infrastructure"]
+        DB_Conn["database/db.py (PyMySQL Connection Manager & Query Translator)"]
+        DB_Pool["PyMySQL Connection Pool"]
+        DB_MySQL[("MySQL Server (Tables & Database Views)")]
+    end
+
+    V_Dash --> S_FIFO
+    V_POS --> S_Inv
+    V_Inv --> S_Inv
+    V_Stock --> S_FIFO
+    V_Audit --> S_Auth
+
+    S_FIFO --> DB_Conn
+    S_Inv --> DB_Conn
+    S_Auth --> DB_Conn
+    S_PDF --> DB_Conn
+
+    DB_Conn --> DB_Pool
+    DB_Pool -->|"TCP/IP Socket"| DB_MySQL
+```
 
 ---
 
-## 3. Feature Suggestions for Users & Staff
+## 1. Technical Audit & Code Health Improvements (MySQL Focus)
+
+### 1. Database Connection Pooling for MySQL
+- **Current Observation**: `get_connection()` in `database/db.py` creates a new `pymysql.connect(...)` socket connection on every query call and closes it in a `finally:` block.
+- **Performance Impact**: Repeated TCP socket initialization on high-frequency transactions introduces latency, particularly over network connections.
+- **Architectural Solution**: Implement connection pooling using `dbutils.pooled_db` or a thread-safe connection wrapper to reuse active MySQL connections.
+
+```mermaid
+graph LR
+    subgraph NonPooled ["Current Behavior (Socket Overhead)"]
+        A1["Query Request"] --> A2["Open MySQL Socket"]
+        A2 --> A3["Execute Query"]
+        A3 --> A4["Close Socket"]
+    end
+
+    subgraph Pooled ["Recommended Connection Pool"]
+        B1["Query Request"] --> B2["Borrow Connection from Pool"]
+        B2 --> B3["Execute Query"]
+        B3 --> B4["Return Connection to Pool"]
+    end
+```
+
+---
+
+### 2. Main Thread UI Responsive Execution
+- **Current Observation**: Heavy queries (such as annual GST summaries or ReportLab multi-page PDF rendering) run on the main Qt GUI thread.
+- **Solution**: Execute PDF generation and heavy report queries inside `QThread` / `QRunnable` worker pools to keep the PySide6 UI smooth and responsive.
+
+---
+
+### 3. Automated MySQL Database Backup Engine
+- **Current Observation**: Legacy backup function performed local file copy of SQLite databases.
+- **Solution**: Update `ui/settings.py` backup routine to execute `mysqldump` commands or export serialized JSON database snapshots when connected to MySQL.
+
+---
+
+### 4. Audit Trail & Staff Activity Tracking (`audit_logs`)
+- **Current Structure**: System actions (creating invoices, editing stock levels, deleting records, logging in) are executed without user attribution.
+- **Solution**: Enforce automated logging via `log_audit_action()` into the `audit_logs` MySQL table:
+  - Fields: `id`, `user_id`, `user_name`, `action`, `module`, `record_id`, `details`, `timestamp`.
+
+---
+
+## 2. Feature Improvements for Staff & POS Billing
 
 ### 1. Dedicated POS / Counter Billing Screen
-- **Overview**: A streamlined, high-speed point-of-sale billing interface optimized for retail counters.
-- **Key Features**:
-  - Barcode scanner input field for instant item addition.
-  - Keyboard shortcuts (`F2` to search items, `F4` to apply discount, `F12` to complete sale).
-  - Quick Payment modal: Cash tendered vs Change due calculator.
-  - One-click **Thermal POS Receipt Print**.
+- Barcode scanner input field for fast item lookups (`F2` shortcut).
+- Instant cash tendered vs change due calculator.
+- One-click **Thermal POS Receipt Printing**.
 
-### 2. Dynamic UPI Payment QR Code Generation
-- **Overview**: Generate a dynamic UPI payment QR code directly on invoices and receipts.
-- **Details**: Using `qrcode` and `reportlab`, generate a QR code containing `upi://pay?pa=YOUR_UPI_ID&pn=COMPANY_NAME&am=TOTAL_AMOUNT&tn=INV_NUMBER`. Customers can scan with GPay, PhonePe, Paytm, or BHIM to pay instantly.
+### 2. ESC/POS Thermal Receipt Printer Pipeline (80mm / 58mm)
 
-### 3. Quotations / Estimates & Proforma Invoices
-- **Overview**: Create and send Quotations and Proforma Invoices to prospective clients.
-- **Details**: Include a "Convert to Invoice" button that automatically creates a GST-compliant sales invoice and deducts stock without needing manual re-entry.
-
-### 4. Bulk Stock Import & Item Barcode Label Printing
-- **Overview**: Import items via CSV/Excel and print barcode labels.
-- **Details**: Generate printable barcode label sheets (A4 grid or 50x25mm sticky labels) for item SKUs.
-
----
-
-## 4. Feature Suggestions for Managers & Administrators
-
-### 1. Audit Trail & Staff Activity Monitor (Admin Only)
-- **Overview**: Detailed log of all user activities in the system.
-- **Key Features**:
-  - Filter logs by User, Action Type (`INSERT`, `UPDATE`, `DELETE`), Module, or Date range.
-  - Shows before/after values for critical edits (e.g. price overrides, bill deletions).
-
-### 2. Stock Reorder & Expiry Alert System
-- **Overview**: Automated alert notifications when items fall below `reorder_point`.
-- **Key Features**:
-  - Visual notification badge on sidebar for items requiring stock replenishment.
-  - One-click draft Purchase Order generation for low-stock vendors.
-
-### 3. Customer & Vendor Credit Limit Control
-- **Overview**: Set credit limits per customer account.
-- **Key Features**:
-  - Warns staff or blocks invoice creation if a customer's total outstanding balance exceeds their authorized credit limit.
-
-### 4. GSTR-1 & GSTR-3B GST Filing Export Engine
-- **Overview**: Export sales, purchases, HSN summary, and B2B/B2C GST tables in official Excel/JSON format for portal filing.
-
----
-
-## 5. Thermal Receipt Printer Support (80mm / 58mm ESC/POS)
-
-### 1. Specification & Architecture
-Retail counters need fast receipt printing on standard thermal paper rolls:
-- **80mm (3-inch / 48 columns)**: Standard POS width.
-- **58mm (2-inch / 32 columns)**: Compact portable/Bluetooth thermal printer width.
-
-### 2. Integration Approaches
-
-#### Approach A: Direct ESC/POS Byte Stream (Fastest & Native)
-Using `python-escpos` or native Windows raw printer API (`win32print`), send binary ESC/POS formatting commands directly to USB, Serial, Network (TCP/IP), or Bluetooth thermal printers.
-- **Benefits**: Instant printing (less than 1 second), no print dialog popups, automatic paper cutter trigger (`ESC i` / `GS V`).
-
-#### Approach B: ReportLab Thermal Page Sizing (PDF-Based)
-Use ReportLab with custom page width (`80 * mm` or `58 * mm`) and dynamic height to render thermal receipts as PDF files, then send to system default printer via PySide `QPrinter` / `win32api`.
-
-### 3. Thermal Receipt Layout Structure
-```
-========================================
-             THE SPACE LABS             
-      123 Business St, City, State      
-         GSTIN: 27AAAAA0000A1Z5         
-             Ph: +91 9876543210         
-========================================
-Receipt #: INV-2026-0042
-Date: 2026-07-19 17:05    Cashier: Staff 1
-Customer: Walk-in Customer
-----------------------------------------
-Item                 Qty   Rate   Amount
-----------------------------------------
-Wireless Mouse        2    450.00 900.00
-Mechanical Keyboard   1   2500.00 2500.00
-----------------------------------------
-Subtotal:                       3400.00
-GST (18%):                       612.00
-Discount:                         12.00
-----------------------------------------
-GRAND TOTAL:                   ₹4000.00
-----------------------------------------
-Payment Method: CASH
-Cash Received: ₹4000.00   Change: ₹0.00
-----------------------------------------
-       Scan to Pay via UPI (GPay/UPI)
-             [ QR CODE IMAGE ]          
-----------------------------------------
-      Thank You for Shopping With Us!   
---------- Powered by LedgerPro POS -----
-========================================
+```mermaid
+graph LR
+    POS_UI["POS Billing View (F12 Complete Sale)"] --> Data_Prep["Prepare Transaction Data & Item List"]
+    Data_Prep --> ESC_Build["Format ESC/POS Commands (Center Header, Column Alignment, Cut Command)"]
+    ESC_Build --> Driver_Choice{"Printer Connection Type"}
+    Driver_Choice -->|"Direct USB / COM"| ESC_Raw["Send Binary Bytes via python-escpos / win32print"]
+    Driver_Choice -->|"PDF Thermal"| ESC_PDF["Render 80mm/58mm PDF via ReportLab"]
+    ESC_Raw --> Thermal_Print["Thermal Paper Output & Auto Paper Cut"]
+    ESC_PDF --> Thermal_Print
 ```
 
 ---
 
-## 6. Suggested Implementation Action Plan
+### 3. Dynamic UPI Payment QR Code Generation
+- Embed dynamic UPI QR code (`upi://pay?pa=YOUR_UPI_ID&pn=COMPANY_NAME&am=AMOUNT`) on invoices and POS receipts using `qrcode` and `ReportLab`. Customers scan via Google Pay, PhonePe, Paytm, or BHIM.
 
-| Phase | Category | Task | Priority |
+---
+
+## 3. Feature Improvements for Managers & Administrators
+
+### 1. Audit Trail & Activity Monitor (Admin View)
+- Filterable activity table showing user actions (`INSERT`, `UPDATE`, `DELETE`), module, date ranges, and record IDs.
+
+### 2. Customer Credit Limit Control
+- Set authorized credit limits per customer profile. Warn or block invoice creation if customer balance exceeds authorized credit limits.
+
+### 3. GSTR-1 & GSTR-3B Filing Export Engine
+- Export B2B, B2C, HSN summary, and input tax tables in Excel/JSON format for portal GST filing.
+
+---
+
+## 4. Implementation Action Plan Roadmap
+
+```mermaid
+graph TD
+    Phase1["Phase 1: Core MySQL Fixes\nMySQL Connection Pooling & Mysqldump Backup Engine"] --> Phase2["Phase 2: Hardware & POS\nESC/POS 80mm/58mm Thermal Receipt Generator"]
+    Phase2 --> Phase3["Phase 3: Security & Audit\nAudit Logs Table & Admin User Activity Monitor"]
+    Phase3 --> Phase4["Phase 4: Counter Billing\nQuick POS Counter Screen & Dynamic UPI QR Code"]
+    Phase4 --> Phase5["Phase 5: Compliance & Analytics\nGSTR-1 Filing Export Engine & Reorder Point Alerts"]
+```
+
+| Phase | Milestone | Deliverable | Priority |
 |---|---|---|---|
-| **Phase 1** | **Core Fixes** | Implement MySQL Connection Pooling & Database Backup script for MySQL | High |
-| **Phase 2** | **Hardware** | Add ESC/POS 80mm/58mm Thermal Printer Engine & Print Settings in Settings Page | High |
-| **Phase 3** | **Audit & Security** | Add `audit_logs` table & Admin Activity Monitoring Screen | High |
-| **Phase 4** | **Counter Billing** | Build Quick POS Counter Billing Screen with Barcode & UPI QR Code | Medium |
-| **Phase 5** | **GST & Analytics**| GSTR-1 Excel/JSON Filing Export Engine & Reorder Point Alerts | Medium |
+| **Phase 1** | Core Infrastructure | MySQL Connection Pooling & `mysqldump` Backup Integration | **High** |
+| **Phase 2** | POS Hardware | ESC/POS 80mm / 58mm Thermal Printer Engine & Setup UI | **High** |
+| **Phase 3** | Security & Audit | `audit_logs` MySQL Table & Admin Monitoring Screen | **High** |
+| **Phase 4** | Counter POS | High-Speed POS Screen & Dynamic UPI QR Code Generation | **Medium** |
+| **Phase 5** | GST Compliance | GSTR-1 Excel/JSON Export Engine & Stock Reorder Alerts | **Medium** |
