@@ -289,6 +289,11 @@ The compiled application output will be created at `dist/LedgerProDesktop/`.
 
 Use this guide if you received a pre-built application folder or `.zip` release package.
 
+> [!NOTE]
+> **Does the user need to set up the database manually?**
+> - **NO manual database setup is required!**
+> - Whether using **SQLite** or **MySQL**, simply configure host & login details in `config.json` and launch `LedgerProDesktop.exe`. The application automatically checks connection, creates the database (`ledgerpro`), builds missing tables, applies all migrations (v1 to v8), and initializes default settings on first launch.
+
 ```mermaid
 graph TD
     B1["1. Extract LedgerProDesktop.zip"] --> B2["2. Open & Edit config.json for MySQL Credentials"]

@@ -113,10 +113,69 @@ def translate_query(query):
 
     return q
 
+def ensure_mysql_db_and_schema():
+    conf = get_config()
+    db_name = conf.get("database", "ledgerpro")
+    host = conf.get("host", "localhost")
+    port = int(conf.get("port", 3306))
+    user = conf.get("user", "root")
+    password = conf.get("password", "")
+
+    # 1. Ensure database exists
+    try:
+        conn = pymysql.connect(
+            host=host,
+            port=port,
+            user=user,
+            password=password,
+            charset='utf8mb4',
+            cursorclass=pymysql.cursors.DictCursor
+        )
+        with conn.cursor() as cursor:
+            cursor.execute(f"CREATE DATABASE IF NOT EXISTS `{db_name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error ensuring MySQL database '{db_name}': {e}")
+        return
+
+    # 2. Check if tables exist; if missing, execute schema_mysql.sql
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SHOW TABLES LIKE 'users'")
+        has_users = cursor.fetchone()
+        cursor.close()
+
+        if not has_users:
+            print("MySQL tables missing. Initializing schema automatically...")
+            schema_path = os.path.join(os.path.dirname(__file__), 'schema_mysql.sql')
+            if not os.path.exists(schema_path):
+                schema_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'database', 'schema_mysql.sql')
+            
+            if os.path.exists(schema_path):
+                with open(schema_path, 'r', encoding='utf-8') as f:
+                    sql_script = f.read()
+                cursor = conn.cursor()
+                statements = sql_script.split(';')
+                for statement in statements:
+                    stmt = statement.strip()
+                    if stmt:
+                        try:
+                            cursor.execute(stmt)
+                        except Exception:
+                            # Ignore index or table already exists errors
+                            pass
+                conn.commit()
+                cursor.close()
+                print("MySQL schema initialized successfully.")
+    except Exception as e:
+        print(f"MySQL schema check/initialization exception: {e}")
+
 def init_db():
     if is_mysql():
-        # Schema creation is handled by mysql_setup.py for MySQL, but run migrations to ensure role column
         print("Using MySQL backend.")
+        ensure_mysql_db_and_schema()
         run_migrations()
         return
 

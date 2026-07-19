@@ -37,11 +37,16 @@ def setup_mysql_database(host, port, user, password, db_name):
         with connection.cursor() as cursor:
             statements = sql_script.split(';')
             for statement in statements:
-                if statement.strip():
+                stmt = statement.strip()
+                if stmt:
                     try:
-                        cursor.execute(statement)
+                        cursor.execute(stmt)
                     except Exception as e:
-                        print(f"Error executing statement:\n{statement}\nError: {e}")
+                        # Ignore Duplicate Key (1061) or Table Exists (1050) errors
+                        if getattr(e, 'args', None) and e.args[0] in (1061, 1050):
+                            pass
+                        else:
+                            print(f"Statement execution note: {e}")
         
         connection.commit()
         print("MySQL Database setup completed successfully!")
