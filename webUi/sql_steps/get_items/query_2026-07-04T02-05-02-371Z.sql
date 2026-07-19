@@ -1,0 +1,4 @@
+-- SQL COMMAND:
+SELECT * FROM items ORDER BY name ASC
+-- PARAMETERS:
+[]
