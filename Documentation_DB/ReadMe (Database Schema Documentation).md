@@ -310,8 +310,24 @@ Item → Stock → Sale/Purchase → Stock update
 * Fully normalized database
 * Supports GST system
 * Inventory tracking (FIFO)
+* High-performance B-Tree Indexing (Migration v8)
 * Scalable for large data
 * Supports accounting (ledger)
+
+---
+
+### B-Tree Performance Indexes (Migration v8)
+
+| Index Name | Target Table | Indexed Columns | Purpose |
+|---|---|---|---|
+| `idx_stock_batches_item` | `stock_batches` | `(item_id, quantity_remaining)` | High-speed FIFO stock valuation joins |
+| `idx_items_sku` | `items` | `(sku)` | Fast barcode scanner & SKU lookup |
+| `idx_items_name` | `items` | `(name)` | Fast item name search filtering |
+| `idx_invoices_customer_status` | `invoices` | `(customer_id, status, date)` | Outstanding customer receivables query speed |
+| `idx_invoice_items_inv_item` | `invoice_items` | `(invoice_id, item_id)` | Fast invoice item detail fetching |
+| `idx_bills_vendor_status` | `bills` | `(vendor_id, status, date)` | Outstanding vendor payables query speed |
+| `idx_bill_items_bill_item` | `bill_items` | `(bill_id, item_id)` | Fast bill item detail fetching |
+| `idx_payments_inv_bill` | `payments` | `(invoice_id, bill_id)` | Payment history & ledger tracking |
 
 ---
 
@@ -319,6 +335,7 @@ Item → Stock → Sale/Purchase → Stock update
 
 * Clean database design
 * GST ready
+* Fast Indexing support (Migration v8)
 * Stock tracking system
 * Accounting support
 

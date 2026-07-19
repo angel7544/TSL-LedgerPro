@@ -77,17 +77,21 @@ class StockPage(QWidget):
             if search_text in item['item_name'].lower()
         ]
         
-        self.table.setRowCount(len(filtered_data))
-        
-        for r, item in enumerate(filtered_data):
-            self.table.setItem(r, 0, QTableWidgetItem(item['item_name']))
-            self.table.setItem(r, 1, QTableWidgetItem(str(item['total_quantity'])))
-            self.table.setItem(r, 2, QTableWidgetItem(f"₹{item['total_value']:.2f}"))
-            self.table.setItem(r, 3, QTableWidgetItem(f"₹{item['avg_cost']:.2f}"))
-            self.table.setItem(r, 4, QTableWidgetItem(f"₹{item.get('selling_price', 0):.2f}"))
-            self.table.setItem(r, 5, QTableWidgetItem(f"₹{item.get('sp1', 0):.2f}"))
-            self.table.setItem(r, 6, QTableWidgetItem(f"₹{item.get('sp2', 0):.2f}"))
-            self.table.setItem(r, 7, QTableWidgetItem(f"₹{item.get('sp3', 0):.2f}"))
+        self.table.setUpdatesEnabled(False)
+        try:
+            self.table.setRowCount(len(filtered_data))
+            
+            for r, item in enumerate(filtered_data):
+                self.table.setItem(r, 0, QTableWidgetItem(item['item_name']))
+                self.table.setItem(r, 1, QTableWidgetItem(str(item['total_quantity'])))
+                self.table.setItem(r, 2, QTableWidgetItem(f"₹{item['total_value']:.2f}"))
+                self.table.setItem(r, 3, QTableWidgetItem(f"₹{item['avg_cost']:.2f}"))
+                self.table.setItem(r, 4, QTableWidgetItem(f"₹{item.get('selling_price', 0):.2f}"))
+                self.table.setItem(r, 5, QTableWidgetItem(f"₹{item.get('sp1', 0):.2f}"))
+                self.table.setItem(r, 6, QTableWidgetItem(f"₹{item.get('sp2', 0):.2f}"))
+                self.table.setItem(r, 7, QTableWidgetItem(f"₹{item.get('sp3', 0):.2f}"))
+        finally:
+            self.table.setUpdatesEnabled(True)
         
         total_qty = 0.0
         total_value = 0.0
@@ -155,6 +159,11 @@ class StockPage(QWidget):
                                          f"Could not find valid identifiers ('Item Name' or 'SKU') and 'Stock On Hand' column.\nFound: {found_headers}")
                     return
 
+                # Pre-fetch items to avoid N+1 queries during CSV loop
+                all_db_items = execute_read_query("SELECT id, sku, name, stock_on_hand, purchase_price FROM items")
+                item_by_sku = {item['sku']: item for item in all_db_items if item.get('sku')}
+                item_by_name = {item['name'].lower(): item for item in all_db_items if item.get('name')}
+
                 success_count = 0
                 error_count = 0
                 errors = []
@@ -177,20 +186,18 @@ class StockPage(QWidget):
                             
                         new_qty = float(str(qty_str).replace(',', '').strip())
                         
-                        # Find Item
-                        items = []
-                        if item_sku:
-                             items = execute_read_query("SELECT id, stock_on_hand, purchase_price FROM items WHERE sku = ?", (item_sku,))
-                        
-                        if not items and item_name:
-                             items = execute_read_query("SELECT id, stock_on_hand, purchase_price FROM items WHERE name = ?", (item_name,))
+                        # Find Item from pre-fetched maps
+                        item = None
+                        if item_sku and item_sku in item_by_sku:
+                            item = item_by_sku[item_sku]
+                        elif item_name and item_name.lower() in item_by_name:
+                            item = item_by_name[item_name.lower()]
 
-                        if not items:
+                        if not item:
                             error_count += 1
                             errors.append(f"Item not found: {identifier}")
                             continue
                             
-                        item = items[0]
                         item_id = item['id']
                         current_qty = item['stock_on_hand']
                         purchase_price = item['purchase_price']

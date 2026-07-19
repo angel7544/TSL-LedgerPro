@@ -33,6 +33,19 @@ def _resolve_paths():
 
 DB_NAME, SCHEMA_FILE = _resolve_paths()
 
+import threading
+
+_thread_local = threading.local()
+
+def _close_mysql_connection():
+    conn = getattr(_thread_local, 'mysql_conn', None)
+    if conn is not None:
+        try:
+            conn.close()
+        except Exception:
+            pass
+        _thread_local.mysql_conn = None
+
 def get_config():
     return load_config().get("database", {"type": "sqlite"})
 
@@ -42,6 +55,13 @@ def is_mysql():
 def get_connection():
     conf = get_config()
     if is_mysql():
+        conn = getattr(_thread_local, 'mysql_conn', None)
+        if conn is not None:
+            try:
+                conn.ping(reconnect=True)
+                return conn
+            except Exception:
+                conn = None
         conn = pymysql.connect(
             host=conf.get("host", "localhost"),
             port=int(conf.get("port", 3306)),
@@ -51,6 +71,7 @@ def get_connection():
             charset='utf8mb4',
             cursorclass=pymysql.cursors.DictCursor
         )
+        _thread_local.mysql_conn = conn
         return conn
     else:
         # Increased timeout to 30 seconds to prevent "database is locked" errors
@@ -187,15 +208,30 @@ def run_migrations():
     except Exception as e:
         print(f"Migration v7 failed: {e}")
 
+    # V8 (Database Indexes for Performance)
+    try:
+        import update_schema_v8
+        update_schema_v8.migrate()
+    except ImportError:
+        pass
+    except Exception as e:
+        print(f"Migration v8 failed: {e}")
+
 def execute_read_query(query, params=()):
     conn = get_connection()
     try:
         cursor = conn.cursor()
         cursor.execute(translate_query(query), params)
         result = cursor.fetchall()
+        cursor.close()
         return result
+    except Exception as e:
+        if is_mysql():
+            _close_mysql_connection()
+        raise e
     finally:
-        conn.close()
+        if not is_mysql():
+            conn.close()
 
 def execute_write_query(query, params=()):
     conn = get_connection()
@@ -204,12 +240,16 @@ def execute_write_query(query, params=()):
         cursor.execute(translate_query(query), params)
         conn.commit()
         last_row_id = cursor.lastrowid
+        cursor.close()
         return last_row_id
     except Exception as e:
         conn.rollback()
+        if is_mysql():
+            _close_mysql_connection()
         raise e
     finally:
-        conn.close()
+        if not is_mysql():
+            conn.close()
 
 def execute_transaction(operations):
     conn = get_connection()
@@ -218,8 +258,12 @@ def execute_transaction(operations):
         for query, params in operations:
             cursor.execute(translate_query(query), params)
         conn.commit()
+        cursor.close()
     except Exception as e:
         conn.rollback()
+        if is_mysql():
+            _close_mysql_connection()
         raise e
     finally:
-        conn.close()
+        if not is_mysql():
+            conn.close()

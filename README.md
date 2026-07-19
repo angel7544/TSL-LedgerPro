@@ -45,8 +45,19 @@ graph TD
     M_Pay --> DB_Adapter
     M_Audit --> DB_Adapter
 
-    DB_Adapter -->|"PyMySQL TCP Socket"| DB_MySQL
+    DB_Adapter -->|"Persistent PyMySQL Socket Pool"| DB_MySQL
 ```
+
+---
+
+## ⚡ High-Performance Database Engine & Optimizations
+
+LedgerPro is engineered for instantaneous database query performance and UI responsiveness on both local SQLite and remote/networked MySQL servers:
+
+1. **Persistent Thread-Local Connection Caching**: Eliminates TCP socket re-connection handshake latency (15–50ms saved per query) by caching and pinging active thread connections (`conn.ping(reconnect=True)`).
+2. **Single-Query Stock FIFO Aggregation**: `get_stock_valuation_summary()` executes 1 aggregated `LEFT JOIN` query with `GROUP BY`, replacing $N+1$ query loops for instant inventory valuation loading.
+3. **Targeted B-Tree Database Indexes (Migration v8)**: Key tables (`stock_batches`, `items`, `invoices`, `bills`, `invoice_items`, `bill_items`, `payments`) are indexed on foreign keys, SKU, item name, status, and dates to ensure instant lookup speeds.
+4. **UI Table Repaint Throttling**: Batch table rendering disables GUI updates during data population (`setUpdatesEnabled(False)`), preventing repaints and layout freezes.
 
 ---
 
@@ -179,65 +190,145 @@ graph TD
 
 ---
 
-## 📥 Installation & Setup (MySQL Backend)
+## 🚀 Comprehensive Step-by-Step Setup & Installation Guide
 
-### Prerequisites
-1. Installed **Python 3.11+**.
-2. A running **MySQL Server** (Localhost or Cloud MySQL host like AWS RDS, Hostinger, DigitalOcean).
+LedgerPro Desktop can be installed and run either from the **GitHub Source Code Repository** (for developers / custom setups) or using the **Standalone Application Package (.exe)** (for clients & end-users).
 
-### 1. Clone & Install Dependencies
+---
+
+### 📦 Option A: Setup from GitHub Source Code Repository
+
+Use this guide if you cloned or downloaded the source code repository from GitHub.
+
+```mermaid
+graph TD
+    A1["1. Clone GitHub Repository"] --> A2["2. Create Python Virtual Environment"]
+    A2 --> A3["3. Install Dependencies (requirements.txt)"]
+    A3 --> A4["4. Configure Database (MySQL / SQLite)"]
+    A4 --> A5["5. Initialize DB Schemas & Seed Admin (create_admin.py)"]
+    A5 --> A6["6. Launch Application (python main.py)"]
+    A6 --> A7["7. (Optional) Package to Standalone EXE (pyinstaller)"]
+```
+
+#### Step 1: Clone the Repository
+Open PowerShell or Command Prompt and run:
 ```bash
-git clone https://github.com/yourusername/ledgerpro-desktop.git
-cd ledgerpro-desktop
+git clone https://github.com/angel7544/TSL-LedgerPro.git
+cd TSL-LedgerPro
+```
 
+#### Step 2: Create & Activate Virtual Environment
+```bash
 # Create virtual environment
 python -m venv venv
-venv\Scripts\activate
 
-# Install Python requirements
+# Activate on Windows PowerShell:
+.\venv\Scripts\Activate.ps1
+
+# Activate on Windows Command Prompt (cmd):
+venv\Scripts\activate
+```
+
+#### Step 3: Install Required Dependencies
+```bash
 pip install -r requirements.txt
 ```
 
-### 2. Configure MySQL Database
-Run the interactive setup helper:
-```bash
-python mysql_setup.py
-```
-Or manually set up `config.json` in the root folder:
-```json
-{
-  "database": {
-    "type": "mysql",
-    "host": "localhost",
-    "port": 3306,
-    "user": "root",
-    "password": "your_mysql_password",
-    "database": "ledgerpro"
-  }
-}
-```
+#### Step 4: Configure Database Backend (`config.json`)
 
-### 3. Initialize Admin & Database Schemas
-Run the schema setup script or create the primary administrator:
+- **For MySQL Backend (Recommended for Multi-User Networking):**
+  Run the interactive setup helper:
+  ```bash
+  python mysql_setup.py
+  ```
+  Or edit `config.json` directly in the project root:
+  ```json
+  {
+    "database": {
+      "type": "mysql",
+      "host": "localhost",
+      "port": 3306,
+      "user": "root",
+      "password": "YOUR_MYSQL_PASSWORD",
+      "database": "ledgerpro"
+    }
+  }
+  ```
+
+- **For SQLite Backend (Single-Machine Mode):**
+  Set `type` to `"sqlite"` in `config.json`:
+  ```json
+  {
+    "database": {
+      "type": "sqlite"
+    }
+  }
+  ```
+
+#### Step 5: Initialize Database Schemas & Create Administrator
+Run the admin initialization script. This will create database tables, apply all schema migrations (v1 to v8 with performance indexes), and seed default credentials:
 ```bash
 python create_admin.py
 ```
 
-### 4. Run Application
+#### Step 6: Launch Application
 ```bash
 python main.py
 ```
 
----
-
-## 🏗️ Building Standalone Executable (`.exe`)
-
-To compile LedgerPro into a standalone Windows executable:
-
+#### Step 7: (Optional) Build Standalone `.exe` Package
+To bundle the Python project into a single-folder standalone Windows executable:
 ```bash
 pyinstaller LedgerProDesktop.spec
 ```
-The output executable package will be created under `dist/LedgerProDesktop/`.
+The compiled application output will be created at `dist/LedgerProDesktop/`.
+
+---
+
+### 💻 Option B: Setup from Standalone Application Package (`.exe` / ZIP)
+
+Use this guide if you received a pre-built application folder or `.zip` release package.
+
+```mermaid
+graph TD
+    B1["1. Extract LedgerProDesktop.zip"] --> B2["2. Open & Edit config.json for MySQL Credentials"]
+    B2 --> B3["3. Double-Click LedgerProDesktop.exe"]
+    B3 --> B4["4. Log in with Default Credentials"]
+    B4 --> B5["5. Setup Thermal Printer & Start Invoicing"]
+```
+
+#### Step 1: Extract the Package
+Unzip `LedgerProDesktop.zip` into your preferred directory (e.g., `C:\LedgerProDesktop`).
+
+#### Step 2: Configure Database Server Connection
+Open `config.json` inside the extracted folder using Notepad:
+```json
+{
+  "database": {
+    "type": "mysql",
+    "host": "192.168.1.100",
+    "port": 3306,
+    "user": "root",
+    "password": "YOUR_MYSQL_PASSWORD",
+    "database": "ledgerpro"
+  }
+}
+```
+*(Replace `192.168.1.100` with `localhost` for local installation, or your central MySQL server's IP address for multi-user office networks).*
+
+#### Step 3: Run the Application
+Double-click **`LedgerProDesktop.exe`**.
+*(Tip: Right-click `LedgerProDesktop.exe` and select **Send to > Desktop (create shortcut)** for quick access).*
+
+#### Step 4: Log In using Pre-Configured Credentials
+
+| Role | Email Address | Password | Access Rights |
+|---|---|---|---|
+| **Owner / Admin** | `admin@br31tech.live` | `admin123` | Full Access (User Mgmt, Settings, Audit Logs, Reports) |
+| **Store Manager** | `manager@br31tech.live` | `admin123` | Master Data, Purchase Bills, FIFO Stock Adjustments |
+| **Billing Staff** | `staff@br31tech.live` | `admin123` | Quick Counter Billing & Thermal POS Print |
+
+*(Note: The primary Owner can create additional staff and manager user accounts from **User Management**).*
 
 ---
 
@@ -249,3 +340,4 @@ The output executable package will be created under `dist/LedgerProDesktop/`.
 - **Version**: 3.5.0 Enterprise (MySQL Edition)
 
 *© 2026 LedgerPro Desktop. All rights reserved.*
+

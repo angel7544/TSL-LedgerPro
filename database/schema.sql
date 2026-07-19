@@ -211,3 +211,14 @@ INSERT OR IGNORE INTO settings (key, value) VALUES ('company_address', '123 Busi
 INSERT OR IGNORE INTO settings (key, value) VALUES ('company_gstin', '');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('company_state', '');
 INSERT OR IGNORE INTO settings (key, value) VALUES ('invoice_prefix', 'INV-');
+
+-- Performance Indexes
+CREATE INDEX IF NOT EXISTS idx_stock_batches_item ON stock_batches (item_id, quantity_remaining);
+CREATE INDEX IF NOT EXISTS idx_items_sku ON items (sku);
+CREATE INDEX IF NOT EXISTS idx_items_name ON items (name);
+CREATE INDEX IF NOT EXISTS idx_invoices_customer_status ON invoices (customer_id, status, date);
+CREATE INDEX IF NOT EXISTS idx_invoice_items_inv_item ON invoice_items (invoice_id, item_id);
+CREATE INDEX IF NOT EXISTS idx_bills_vendor_status ON bills (vendor_id, status, date);
+CREATE INDEX IF NOT EXISTS idx_bill_items_bill_item ON bill_items (bill_id, item_id);
+CREATE INDEX IF NOT EXISTS idx_payments_inv_bill ON payments (invoice_id, bill_id);
+

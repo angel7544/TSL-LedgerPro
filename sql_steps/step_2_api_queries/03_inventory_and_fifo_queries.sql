@@ -36,12 +36,17 @@ SELECT id, name, sku, stock_on_hand, reorder_point, unit
 FROM items 
 WHERE track_inventory = 1 AND stock_on_hand <= reorder_point;
 
--- 8. Fetch total stock valuation by FIFO purchase rate
+-- 8. Fetch complete stock valuation & summary by FIFO purchase rate (Single Query Aggregation)
 SELECT 
     i.id AS item_id,
-    i.name,
-    i.sku,
-    COALESCE(SUM(sb.quantity_remaining * sb.purchase_rate), 0) AS batch_valuation
+    i.name AS item_name,
+    COALESCE(i.selling_price, 0) AS selling_price,
+    COALESCE(i.sp1, 0) AS sp1,
+    COALESCE(i.sp2, 0) AS sp2,
+    COALESCE(i.sp3, 0) AS sp3,
+    COALESCE(SUM(sb.quantity_remaining), 0) AS total_quantity,
+    COALESCE(SUM(sb.quantity_remaining * sb.purchase_rate), 0) AS total_value
 FROM items i
-LEFT JOIN stock_batches sb ON i.id = sb.item_id
-GROUP BY i.id;
+LEFT JOIN stock_batches sb ON i.id = sb.item_id AND sb.quantity_remaining > 0
+GROUP BY i.id, i.name, i.selling_price, i.sp1, i.sp2, i.sp3;
+

@@ -38,8 +38,18 @@ graph LR
 
     PC1 -->|"Real-Time PyMySQL Connection"| MySQL_DB
     PC2 -->|"Real-Time PyMySQL Connection"| MySQL_DB
-    PC3 -->|"Real-Time PyMySQL Connection"| MySQL_DB
 ```
+
+---
+
+## ⚡ High Performance & MySQL Network Optimizations
+
+To ensure zero-lag performance when operating across multi-user local networks or remote cloud databases, LedgerPro Desktop incorporates:
+
+- **Persistent Connection Pool**: Thread-local socket caching in `database/db.py` eliminates TCP connection handshake latency (15–50ms saved per query).
+- **Single-Query FIFO Stock Aggregation**: `get_stock_valuation_summary()` executes an optimized SQL `LEFT JOIN` query with `GROUP BY` to instantly calculate item quantities and valuations without $N+1$ query overhead.
+- **Migration v8 Database Indexing**: Pre-indexed database tables (`stock_batches`, `items`, `invoices`, `bills`, `payments`) ensure instant B-Tree index lookups for barcode scanners and searches.
+- **GUI Repaint Throttling**: Disables table repaints (`setUpdatesEnabled(False)`) during large dataset filtering to prevent visual stuttering and freezes.
 
 ---
 

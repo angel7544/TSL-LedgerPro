@@ -80,40 +80,41 @@ def reduce_stock_fifo(item_id, quantity_sold):
 
 def get_stock_valuation_summary():
     """
-    Returns a summary of stock valuation for all items.
+    Returns a summary of stock valuation for all items using a single optimized query.
     """
-    items = execute_read_query("SELECT id, name, selling_price, sp1, sp2, sp3 FROM items")
+    query = """
+        SELECT 
+            i.id AS item_id,
+            i.name AS item_name,
+            COALESCE(i.selling_price, 0) AS selling_price,
+            COALESCE(i.sp1, 0) AS sp1,
+            COALESCE(i.sp2, 0) AS sp2,
+            COALESCE(i.sp3, 0) AS sp3,
+            COALESCE(SUM(sb.quantity_remaining), 0) AS total_quantity,
+            COALESCE(SUM(sb.quantity_remaining * sb.purchase_rate), 0) AS total_value
+        FROM items i
+        LEFT JOIN stock_batches sb ON i.id = sb.item_id AND sb.quantity_remaining > 0
+        GROUP BY i.id, i.name, i.selling_price, i.sp1, i.sp2, i.sp3
+    """
+    rows = execute_read_query(query)
     summary = []
     
-    for item in items:
-        item_id = item['id']
-        batches = execute_read_query("""
-            SELECT quantity_remaining, purchase_rate 
-            FROM stock_batches 
-            WHERE item_id = ? AND quantity_remaining > 0
-        """, (item_id,))
-        
-        total_qty = 0
-        total_value = 0.0
-        
-        for batch in batches:
-            qty = batch['quantity_remaining']
-            rate = batch['purchase_rate']
-            total_qty += qty
-            total_value += qty * rate
-            
+    for row in rows:
+        total_qty = float(row['total_quantity'] or 0)
+        total_value = float(row['total_value'] or 0.0)
         avg_cost = (total_value / total_qty) if total_qty > 0 else 0.0
         
         summary.append({
-            "item_id": item_id,
-            "item_name": item['name'],
-            "selling_price": item.get('selling_price', 0.0),
-            "sp1": item.get('sp1', 0.0),
-            "sp2": item.get('sp2', 0.0),
-            "sp3": item.get('sp3', 0.0),
+            "item_id": row['item_id'],
+            "item_name": row['item_name'],
+            "selling_price": float(row['selling_price'] or 0.0),
+            "sp1": float(row['sp1'] or 0.0),
+            "sp2": float(row['sp2'] or 0.0),
+            "sp3": float(row['sp3'] or 0.0),
             "total_quantity": total_qty,
             "total_value": round(total_value, 2),
             "avg_cost": round(avg_cost, 2)
         })
         
     return summary
+

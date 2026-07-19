@@ -10,8 +10,8 @@ The `sql_steps` directory contains modular, executable SQL scripts organized int
 
 | Step Directory | Description | Primary SQL Files |
 |---|---|---|
-| **`step_1_schema/`** | Core DDL table definitions & Database Views | `01_sqlite_schema.sql`, `02_mysql_schema.sql`, `03_sqlite_views.sql`, `04_mysql_views.sql` |
-| **`step_2_api_queries/`** | Categorized CRUD & analytical application queries | `01_auth...`, `02_master_data...`, `03_inventory...`, `04_sales...`, `05_purchases...`, `06_payments...`, `07_reports...`, `08_settings...` |
+| **`step_1_schema/`** | Core DDL table definitions, Views & B-Tree Indexes (Migration v8) | `01_sqlite_schema.sql`, `02_mysql_schema.sql`, `03_sqlite_views.sql`, `04_mysql_views.sql` |
+| **`step_2_api_queries/`** | Categorized CRUD & single-query FIFO aggregated queries | `01_auth...`, `02_master_data...`, `03_inventory...`, `04_sales...`, `05_purchases...`, `06_payments...`, `07_reports...`, `08_settings...` |
 | **`step_3_org_roles_schema/`** | Role-Based Access Control (RBAC) & Multi-Org schema | `01_org_and_roles_schema.sql` |
 | **`step_4_recreate_db/`** | Full drop & recreate scripts for fresh resets | `01_recreate_sqlite_db.sql`, `02_recreate_mysql_db.sql` |
 | **`step_5_seed_admin/`** | Seed script for primary Admin account | `01_seed_admin_user.sql` |
@@ -33,7 +33,7 @@ The LedgerPro application handles database initialization and schema migration a
    ```bash
    python main.py
    ```
-   *The application will automatically detect missing tables, create SQLite schemas, apply migrations (v1 to v7), and initialize the default database.*
+   *The application will automatically detect missing tables, create SQLite schemas, apply migrations (v1 to v8 including B-tree performance indexes), and initialize the default database.*
 
 ---
 

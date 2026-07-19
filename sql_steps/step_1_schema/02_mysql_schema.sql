@@ -215,3 +215,14 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     details TEXT,
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 13. Performance B-Tree Indexes
+CREATE INDEX idx_stock_batches_item ON stock_batches (item_id, quantity_remaining);
+CREATE INDEX idx_items_sku ON items (sku);
+CREATE INDEX idx_items_name ON items (name);
+CREATE INDEX idx_invoices_customer_status ON invoices (customer_id, status, date);
+CREATE INDEX idx_invoice_items_inv_item ON invoice_items (invoice_id, item_id);
+CREATE INDEX idx_bills_vendor_status ON bills (vendor_id, status, date);
+CREATE INDEX idx_bill_items_bill_item ON bill_items (bill_id, item_id);
+CREATE INDEX idx_payments_inv_bill ON payments (invoice_id, bill_id);
+

@@ -86,55 +86,59 @@ class BaseCRUDPage(QWidget):
                 if match:
                     filtered_rows.append(row)
 
-        self.table.setRowCount(len(filtered_rows))
-        
-        formatters = getattr(self, "column_formatters", {})
+        self.table.setUpdatesEnabled(False)
+        try:
+            self.table.setRowCount(len(filtered_rows))
+            
+            formatters = getattr(self, "column_formatters", {})
 
-        for r, row in enumerate(filtered_rows):
-            for c, col in enumerate(self.columns):
-                key = col[1]
-                val = row[key]
-                
-                if key in formatters:
-                    try:
-                        text = formatters[key](val)
-                    except:
-                        text = str(val) if val is not None else ""
-                else:
-                    text = str(val) if val is not None else ""
+            for r, row in enumerate(filtered_rows):
+                for c, col in enumerate(self.columns):
+                    key = col[1]
+                    val = row[key]
                     
-                item = QTableWidgetItem(text)
+                    if key in formatters:
+                        try:
+                            text = formatters[key](val)
+                        except:
+                            text = str(val) if val is not None else ""
+                    else:
+                        text = str(val) if val is not None else ""
+                        
+                    item = QTableWidgetItem(text)
+                    
+                    # Align right for numbers
+                    if key in formatters or isinstance(val, (int, float)):
+                         item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+                         
+                    self.table.setItem(r, c, item)
                 
-                # Align right for numbers
-                if key in formatters or isinstance(val, (int, float)):
-                     item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-                     
-                self.table.setItem(r, c, item)
-            
-            # Action Buttons
-            action_widget = QWidget()
-            action_layout = QHBoxLayout(action_widget)
-            action_layout.setContentsMargins(0, 0, 0, 0)
-            
-            if getattr(self, "view_button_enabled", False):
-                view_btn = QPushButton("View")
-                view_btn.setStyleSheet("background-color: #06B6D4; color: white; border-radius: 4px; padding: 4px 8px;")
-                view_btn.clicked.connect(lambda checked, row_data=row: self.open_view_dialog(row_data))
-                action_layout.addWidget(view_btn)
-            
-            edit_btn = QPushButton("Edit")
-            edit_btn.setStyleSheet("background-color: #F59E0B; color: white; border-radius: 4px; padding: 4px 8px;")
-            edit_btn.clicked.connect(lambda checked, row_data=row: self.open_form_dialog(row_data))
-            
-            delete_btn = QPushButton("Delete")
-            delete_btn.setStyleSheet("background-color: #EF4444; color: white; border-radius: 4px; padding: 4px 8px;")
-            delete_btn.clicked.connect(lambda checked, row_id=row['id']: self.delete_record(row_id))
-            
-            action_layout.addWidget(edit_btn)
-            action_layout.addWidget(delete_btn)
-            action_layout.addStretch()
-            
-            self.table.setCellWidget(r, len(self.columns), action_widget)
+                # Action Buttons
+                action_widget = QWidget()
+                action_layout = QHBoxLayout(action_widget)
+                action_layout.setContentsMargins(0, 0, 0, 0)
+                
+                if getattr(self, "view_button_enabled", False):
+                    view_btn = QPushButton("View")
+                    view_btn.setStyleSheet("background-color: #06B6D4; color: white; border-radius: 4px; padding: 4px 8px;")
+                    view_btn.clicked.connect(lambda checked, row_data=row: self.open_view_dialog(row_data))
+                    action_layout.addWidget(view_btn)
+                
+                edit_btn = QPushButton("Edit")
+                edit_btn.setStyleSheet("background-color: #F59E0B; color: white; border-radius: 4px; padding: 4px 8px;")
+                edit_btn.clicked.connect(lambda checked, row_data=row: self.open_form_dialog(row_data))
+                
+                delete_btn = QPushButton("Delete")
+                delete_btn.setStyleSheet("background-color: #EF4444; color: white; border-radius: 4px; padding: 4px 8px;")
+                delete_btn.clicked.connect(lambda checked, row_id=row['id']: self.delete_record(row_id))
+                
+                action_layout.addWidget(edit_btn)
+                action_layout.addWidget(delete_btn)
+                action_layout.addStretch()
+                
+                self.table.setCellWidget(r, len(self.columns), action_widget)
+        finally:
+            self.table.setUpdatesEnabled(True)
 
     def delete_record(self, record_id):
         reply = QMessageBox.question(self, 'Confirm Delete', 
