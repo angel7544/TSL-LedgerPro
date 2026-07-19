@@ -12,6 +12,8 @@ from database.db import execute_read_query, execute_write_query
 from modules.invoice import create_bill, update_bill, delete_bill
 from modules.payment import get_unpaid_bills, save_bill_payment, generate_payment_number, get_vendor_credits
 from pdf.generator import generate_bill_pdf
+from ui.icons import get_icon
+from auth.auth_logic import log_audit_action
 import datetime
 
 class BillsPage(QWidget):
@@ -22,14 +24,16 @@ class BillsPage(QWidget):
         # Header
         header_layout = QHBoxLayout()
         title = QLabel("Purchases (Bills)")
-        title.setStyleSheet("font-size: 24px; font-weight: bold;")
+        title.setStyleSheet("font-size: 24px; font-weight: bold; color: #1E293B;")
         
-        create_btn = QPushButton("+ New Bill")
-        create_btn.setStyleSheet("background-color: #2563EB; color: white; padding: 8px 16px; border-radius: 6px;")
+        create_btn = QPushButton(" New Bill")
+        create_btn.setIcon(get_icon("add", "#FFFFFF", 16))
+        create_btn.setStyleSheet("background-color: #2563EB; color: white; padding: 8px 16px; border-radius: 6px; font-weight: bold;")
         create_btn.clicked.connect(self.open_create_dialog)
         
-        pay_btn = QPushButton("Record Payment")
-        pay_btn.setStyleSheet("background-color: #10B981; color: white; padding: 8px 16px; border-radius: 6px;")
+        pay_btn = QPushButton(" Record Payment")
+        pay_btn.setIcon(get_icon("payments", "#FFFFFF", 16))
+        pay_btn.setStyleSheet("background-color: #10B981; color: white; padding: 8px 16px; border-radius: 6px; font-weight: bold;")
         pay_btn.clicked.connect(self.open_payment_dialog)
         
         header_layout.addWidget(title)
@@ -108,6 +112,7 @@ class BillsPage(QWidget):
         if confirm == QMessageBox.StandardButton.Yes:
             try:
                 delete_bill(bill_id)
+                log_audit_action("DELETE_BILL", "Purchases", bill_id, "Bill deleted (stock adjusted)")
                 self.refresh_data()
                 QMessageBox.information(self, "Success", "Bill deleted successfully.")
             except Exception as e:
@@ -132,6 +137,7 @@ class BillsPage(QWidget):
         if confirm == QMessageBox.StandardButton.Yes:
             try:
                 execute_write_query("UPDATE bills SET status = 'Sent' WHERE id = ?", (bill_id,))
+                log_audit_action("MARK_BILL_DUE", "Purchases", bill_id, f"Bill #{bill_id} marked as due")
                 self.refresh_data()
                 QMessageBox.information(self, "Success", "Bill marked as Due (Sent).")
             except Exception as e:
@@ -577,7 +583,8 @@ class CreateBillDialog(QDialog):
         super().__init__(parent)
         self.bill_data = bill_data
         self.setWindowTitle("Edit Purchase (Bill)" if bill_data else "Record New Purchase (Bill)")
-        self.setFixedSize(900, 700)
+        self.resize(1150, 750)
+        self.setWindowFlags(self.windowFlags() | Qt.WindowType.WindowMaximizeButtonHint | Qt.WindowType.WindowMinimizeButtonHint)
         
         main_layout = QVBoxLayout()
         
@@ -635,14 +642,24 @@ class CreateBillDialog(QDialog):
         # --- Items Table ---
         self.items_table = QTableWidget()
         self.items_table.setColumnCount(6)
-        self.items_table.setHorizontalHeaderLabels(["Item", "Qty", "Purchase Rate", "GST %", "Total", ""])
-        self.items_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.items_table.setMinimumHeight(200)
+        self.items_table.setHorizontalHeaderLabels(["Item", "Qty", "Purchase Rate", "GST %", "Total", "Action"])
+        
+        header = self.items_table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
+        self.items_table.setColumnWidth(0, 320)
+        self.items_table.setMinimumHeight(220)
         
         layout.addWidget(self.items_table)
         
         # Add Item Button
-        add_item_btn = QPushButton("+ Add Line Item")
+        add_item_btn = QPushButton(" Add Line Item")
+        add_item_btn.setIcon(get_icon("add", "#2563EB", 16))
+        add_item_btn.setStyleSheet("color: #2563EB; font-weight: bold; padding: 6px 12px; border: 1px solid #CBD5E1; border-radius: 4px; background: white;")
         add_item_btn.clicked.connect(self.add_item_row)
         layout.addWidget(add_item_btn)
         
@@ -881,8 +898,10 @@ class CreateBillDialog(QDialog):
         total = QLabel("0.00")
         
         # Delete button
-        del_btn = QPushButton("X")
-        del_btn.setStyleSheet("color: red; font-weight: bold;")
+        del_btn = QPushButton("")
+        del_btn.setIcon(get_icon("delete", "#EF4444", 16))
+        del_btn.setToolTip("Remove Item Row")
+        del_btn.setStyleSheet("border: none; background: transparent; padding: 4px;")
         del_btn.clicked.connect(lambda: self.remove_row(row))
         
         # Connect signals
@@ -1033,9 +1052,11 @@ class CreateBillDialog(QDialog):
                 # Update
                 bill_data['status'] = self.bill_data.get('status', 'Draft')
                 update_bill(self.bill_data['id'], bill_data)
+                log_audit_action("UPDATE_BILL", "Purchases", self.bill_data['id'], f"Bill #{self.bill_data.get('bill_number')} updated")
                 QMessageBox.information(self, "Success", "Bill updated successfully")
             else:
-                create_bill(bill_data)
+                new_bill_id = create_bill(bill_data)
+                log_audit_action("CREATE_BILL", "Purchases", new_bill_id or "", f"New bill recorded for vendor ID {vendor_id}")
                 QMessageBox.information(self, "Success", "Bill saved successfully")
             self.accept()
         except Exception as e:

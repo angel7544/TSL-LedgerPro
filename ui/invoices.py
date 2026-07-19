@@ -10,6 +10,8 @@ from database.db import execute_read_query, execute_write_query
 from modules.invoice import create_invoice, update_invoice, delete_invoice
 from pdf.generator import generate_invoice_pdf
 from ui.payments import RecordPaymentDialog
+from ui.icons import get_icon
+from auth.auth_logic import log_audit_action
 import datetime
 import os
 import json
@@ -22,14 +24,16 @@ class InvoicesPage(QWidget):
         # Header
         header_layout = QHBoxLayout()
         title = QLabel("Invoices")
-        title.setStyleSheet("font-size: 24px; font-weight: bold;")
+        title.setStyleSheet("font-size: 24px; font-weight: bold; color: #1E293B;")
         
-        create_btn = QPushButton("+ New Invoice")
-        create_btn.setStyleSheet("background-color: #2563EB; color: white; padding: 8px 16px; border-radius: 6px;")
+        create_btn = QPushButton(" New Invoice")
+        create_btn.setIcon(get_icon("add", "#FFFFFF", 16))
+        create_btn.setStyleSheet("background-color: #2563EB; color: white; padding: 8px 16px; border-radius: 6px; font-weight: bold;")
         create_btn.clicked.connect(self.open_create_dialog)
         
-        pay_btn = QPushButton("Record Payment")
-        pay_btn.setStyleSheet("background-color: #10B981; color: white; padding: 8px 16px; border-radius: 6px;")
+        pay_btn = QPushButton(" Record Payment")
+        pay_btn.setIcon(get_icon("payments", "#FFFFFF", 16))
+        pay_btn.setStyleSheet("background-color: #10B981; color: white; padding: 8px 16px; border-radius: 6px; font-weight: bold;")
         pay_btn.clicked.connect(self.open_payment_dialog)
         
         header_layout.addWidget(title)
@@ -97,6 +101,7 @@ class InvoicesPage(QWidget):
         if confirm == QMessageBox.StandardButton.Yes:
             try:
                 delete_invoice(invoice_id)
+                log_audit_action("DELETE_INVOICE", "Invoices", invoice_id, "Invoice deleted (stock restored)")
                 self.refresh_data()
                 QMessageBox.information(self, "Success", "Invoice deleted successfully.")
             except Exception as e:
@@ -242,15 +247,18 @@ class ViewInvoiceDialog(QDialog):
         
         # Buttons
         btn_layout = QHBoxLayout()
-        print_btn = QPushButton("Print A4 PDF")
+        print_btn = QPushButton(" Print A4 PDF")
+        print_btn.setIcon(get_icon("print", "#1E293B", 16))
         print_btn.clicked.connect(self.print_pdf)
 
-        print_thermal_80_btn = QPushButton("🖨 POS Receipt (80mm)")
-        print_thermal_80_btn.setStyleSheet("background-color: #F1F5F9; border: 1px solid #CBD5E1; border-radius: 4px; padding: 6px 10px;")
+        print_thermal_80_btn = QPushButton(" POS Receipt (80mm)")
+        print_thermal_80_btn.setIcon(get_icon("pos_receipt", "#1E293B", 16))
+        print_thermal_80_btn.setStyleSheet("background-color: #F1F5F9; border: 1px solid #CBD5E1; border-radius: 4px; padding: 6px 10px; font-weight: 500;")
         print_thermal_80_btn.clicked.connect(lambda: self.print_thermal(80))
         
-        print_thermal_58_btn = QPushButton("🖨 POS Receipt (58mm)")
-        print_thermal_58_btn.setStyleSheet("background-color: #F1F5F9; border: 1px solid #CBD5E1; border-radius: 4px; padding: 6px 10px;")
+        print_thermal_58_btn = QPushButton(" POS Receipt (58mm)")
+        print_thermal_58_btn.setIcon(get_icon("pos_receipt", "#1E293B", 16))
+        print_thermal_58_btn.setStyleSheet("background-color: #F1F5F9; border: 1px solid #CBD5E1; border-radius: 4px; padding: 6px 10px; font-weight: 500;")
         print_thermal_58_btn.clicked.connect(lambda: self.print_thermal(58))
 
         close_btn = QPushButton("Close")
@@ -300,9 +308,9 @@ class CreateInvoiceDialog(QDialog):
         super().__init__(parent)
         self.invoice_data = invoice_data
         self.setWindowTitle("Edit Invoice" if invoice_data else "Create New Invoice")
-        self.resize(900, 700)
+        self.resize(1150, 750)
         # Enable Maximize Button
-        self.setWindowFlags(self.windowFlags() | Qt.WindowType.WindowMaximizeButtonHint)
+        self.setWindowFlags(self.windowFlags() | Qt.WindowType.WindowMaximizeButtonHint | Qt.WindowType.WindowMinimizeButtonHint)
         
         main_layout = QVBoxLayout()
         
@@ -362,8 +370,9 @@ class CreateInvoiceDialog(QDialog):
         # Add an Info button for Rate Types
         info_layout = QHBoxLayout()
         info_layout.addStretch()
-        info_btn = QPushButton("ⓘ Rate Types Info")
-        info_btn.setStyleSheet("background-color: transparent; color: #2563EB; text-decoration: underline; border: none; font-size: 12px;")
+        info_btn = QPushButton(" Rate Types Info")
+        info_btn.setIcon(get_icon("info", "#2563EB", 14))
+        info_btn.setStyleSheet("background-color: transparent; color: #2563EB; text-decoration: underline; border: none; font-size: 12px; font-weight: bold;")
         info_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         info_btn.clicked.connect(self.show_rate_types_info)
         info_layout.addWidget(info_btn)
@@ -372,13 +381,25 @@ class CreateInvoiceDialog(QDialog):
         self.items_table = QTableWidget()
         self.items_table.setColumnCount(8)
         self.items_table.setHorizontalHeaderLabels(["Item", "Qty", "Rate Type", "Rate", "Disc %", "GST %", "Total", "Action"])
-        self.items_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.items_table.setMinimumHeight(200)
+        
+        header = self.items_table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(7, QHeaderView.ResizeMode.ResizeToContents)
+        self.items_table.setColumnWidth(0, 320)
+        self.items_table.setMinimumHeight(220)
         
         layout.addWidget(self.items_table)
         
         # Add Item Button
-        add_item_btn = QPushButton("+ Add Line Item")
+        add_item_btn = QPushButton(" Add Line Item")
+        add_item_btn.setIcon(get_icon("add", "#2563EB", 16))
+        add_item_btn.setStyleSheet("color: #2563EB; font-weight: bold; padding: 6px 12px; border: 1px solid #CBD5E1; border-radius: 4px; background: white;")
         add_item_btn.clicked.connect(self.add_item_row)
         layout.addWidget(add_item_btn)
         
@@ -747,8 +768,10 @@ class CreateInvoiceDialog(QDialog):
         self.items_table.setCellWidget(row, 6, total)
         
         # Remove Button
-        remove_btn = QPushButton("X")
-        remove_btn.setStyleSheet("color: red; font-weight: bold;")
+        remove_btn = QPushButton("")
+        remove_btn.setIcon(get_icon("delete", "#EF4444", 16))
+        remove_btn.setToolTip("Remove Item Row")
+        remove_btn.setStyleSheet("border: none; background: transparent; padding: 4px;")
         remove_btn.clicked.connect(self.remove_item_row)
         self.items_table.setCellWidget(row, 7, remove_btn)
         
@@ -928,10 +951,12 @@ class CreateInvoiceDialog(QDialog):
                 # Update
                 invoice_data['status'] = self.invoice_data.get('status', 'Due') # Preserve status or default
                 update_invoice(self.invoice_data['id'], invoice_data)
+                log_audit_action("UPDATE_INVOICE", "Invoices", self.invoice_data['id'], f"Invoice #{self.invoice_data.get('invoice_number')} updated")
                 QMessageBox.information(self, "Success", "Invoice updated successfully")
             else:
                 # Create
-                create_invoice(invoice_data)
+                new_inv_id = create_invoice(invoice_data)
+                log_audit_action("CREATE_INVOICE", "Invoices", new_inv_id or "", f"New invoice created for customer ID {customer_id}")
                 QMessageBox.information(self, "Success", "Invoice created successfully")
             self.accept()
         except Exception as e:

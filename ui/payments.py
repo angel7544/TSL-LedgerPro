@@ -10,6 +10,8 @@ import os
 import json
 from database.db import execute_read_query, execute_write_query, execute_transaction
 from modules.payment import get_unpaid_invoices, save_payment, generate_payment_number, get_customer_credits
+from ui.icons import get_icon
+from auth.auth_logic import log_audit_action
 import datetime
 
 class PaymentsPage(QWidget):
@@ -191,6 +193,7 @@ class PaymentsPage(QWidget):
                         execute_write_query("UPDATE bills SET status = ? WHERE id = ?", (new_status, bill_id))
 
                 self.refresh_data()
+                log_audit_action("DELETE_PAYMENT", "Payments", payment_number, f"Payment #{payment_number} deleted")
                 QMessageBox.information(self, "Success", "Payment deleted successfully.")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to delete payment: {str(e)}")

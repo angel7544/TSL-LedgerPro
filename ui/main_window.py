@@ -15,8 +15,11 @@ from ui.reports import ReportsPage
 from ui.payments import PaymentsPage
 from ui.settings import SettingsPage
 from ui.user_management import UserManagementPage
+from ui.audit_logs import AuditLogsPage
 from ui.styles import STYLESHEET
+from ui.icons import get_icon
 from auth.session import Session
+from auth.auth_logic import log_audit_action
 
 
 class AboutWidget(QWidget):
@@ -367,6 +370,7 @@ class MainWindow(QMainWindow):
             ("Payments", PaymentsPage),
             ("Stock", StockPage),
             ("Reports", ReportsPage),
+            ("Audit Logs", AuditLogsPage),
             ("Users", UserManagementPage),
             ("Settings", SettingsPage),
             ("About", AboutPage),
@@ -395,9 +399,11 @@ class MainWindow(QMainWindow):
         user_lbl.setStyleSheet("color: #64748B; padding-left: 20px; font-size: 12px; line-height: 1.4;")
         sidebar_layout.addWidget(user_lbl)
         
-        logout_btn = QPushButton("Logout")
-        logout_btn.setStyleSheet("background-color: transparent; color: #EF4444; border: none; text-align: left; padding: 10px 20px; font-weight: bold;")
-        logout_btn.clicked.connect(self.close) # Ideally switch to login screen
+        logout_btn = QPushButton(" Logout")
+        logout_btn.setIcon(get_icon("logout", "#EF4444", 18))
+        logout_btn.setIconSize(QSize(18, 18))
+        logout_btn.setStyleSheet("background-color: transparent; color: #EF4444; border: none; text-align: left; padding: 10px 20px; font-weight: bold; cursor: pointer;")
+        logout_btn.clicked.connect(self.handle_logout)
         sidebar_layout.addWidget(logout_btn)
         
         main_layout.addWidget(self.sidebar)
@@ -424,28 +430,35 @@ class MainWindow(QMainWindow):
         
         main_layout.addWidget(content_container)
 
+        # Show full-screen maximized window
+        self.showMaximized()
+
+    def handle_logout(self):
+        try:
+            from auth.session import Session
+            user = Session.get_instance().get_user()
+            u_name = user.get('name', 'User') if user else 'User'
+            log_audit_action("LOGOUT", "Auth", "", f"User {u_name} logged out")
+        except Exception as e:
+            print(f"Logout audit log error: {e}")
+        self.close()
+
     def add_nav_button(self, text, index, layout):
-        btn = QPushButton(text)
+        btn = QPushButton(f" {text}")
         
-        # Add Icon
-        icon_map = {
-            "Dashboard": QStyle.StandardPixmap.SP_ComputerIcon,
-            "Customers": QStyle.StandardPixmap.SP_DirHomeIcon,
-            "Vendors": QStyle.StandardPixmap.SP_DirIcon,
-            "Items": QStyle.StandardPixmap.SP_FileIcon,
-            "Invoices": QStyle.StandardPixmap.SP_FileDialogDetailedView,
-            "Purchases": QStyle.StandardPixmap.SP_FileDialogListView,
-            "Payments": QStyle.StandardPixmap.SP_DialogApplyButton,
-            "Stock": QStyle.StandardPixmap.SP_DriveHDIcon,
-            "Reports": QStyle.StandardPixmap.SP_DialogHelpButton,
-            "Users": QStyle.StandardPixmap.SP_FileDialogInfoView,
-            "Settings": QStyle.StandardPixmap.SP_BrowserReload,
-            "About": QStyle.StandardPixmap.SP_MessageBoxInformation
-        }
-        
-        if text in icon_map:
-            btn.setIcon(self.style().standardIcon(icon_map[text]))
-            btn.setIconSize(QSize(20, 20))
+        # Set clean vector icon
+        icon_color = "#2563EB"
+        btn.setIcon(get_icon(text, icon_color, 20))
+        btn.setIconSize(QSize(20, 20))
+
+        btn.setCheckable(True)
+        if index == 0:
+            btn.setChecked(True)
+            self.current_nav_btn = btn
+            
+        btn.clicked.connect(lambda: self.switch_page(index, btn))
+        layout.addWidget(btn)
+        self.nav_buttons.append(btn)
 
         btn.setCheckable(True)
         if index == 0:

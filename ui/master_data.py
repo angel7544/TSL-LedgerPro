@@ -5,6 +5,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import QDate, Qt
 from database.db import execute_read_query, execute_write_query, execute_transaction
+from ui.icons import get_icon
+from auth.auth_logic import log_audit_action
 import csv
 import io
 import datetime
@@ -23,10 +25,11 @@ class BaseCRUDPage(QWidget):
         # Header
         self.header = QHBoxLayout()
         title_lbl = QLabel(title)
-        title_lbl.setStyleSheet("font-size: 24px; font-weight: bold;")
+        title_lbl.setStyleSheet("font-size: 24px; font-weight: bold; color: #1E293B;")
         
-        self.add_btn = QPushButton(f"+ Add {title[:-1]}") # Remove 's'
-        self.add_btn.setStyleSheet("background-color: #2563EB; color: white; padding: 8px 16px; border-radius: 6px;")
+        self.add_btn = QPushButton(f" Add {title[:-1]}") # Remove 's'
+        self.add_btn.setIcon(get_icon("add", "#FFFFFF", 16))
+        self.add_btn.setStyleSheet("background-color: #2563EB; color: white; padding: 8px 16px; border-radius: 6px; font-weight: bold;")
         self.add_btn.clicked.connect(lambda: self.open_form_dialog())
         
         self.header.addWidget(title_lbl)
@@ -46,7 +49,12 @@ class BaseCRUDPage(QWidget):
         # Add 'Actions' column
         self.table.setColumnCount(len(columns) + 1)
         self.table.setHorizontalHeaderLabels([c[0] for c in columns] + ["Actions"])
-        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        header = self.table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        header.setMinimumSectionSize(120)
+        # Column 0 (Item/Customer/Vendor Name) stretched generously
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.table.setColumnWidth(0, 300)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.layout.addWidget(self.table)
         
@@ -136,6 +144,7 @@ class BaseCRUDPage(QWidget):
         if reply == QMessageBox.StandardButton.Yes:
             try:
                 execute_write_query(f"DELETE FROM {self.table_name} WHERE id = ?", (record_id,))
+                log_audit_action(f"DELETE_{self.title[:-1].upper()}", self.title, record_id, f"{self.title[:-1]} ID {record_id} deleted")
                 self.refresh_data()
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to delete: {str(e)}")
@@ -152,14 +161,11 @@ class BaseCRUDPage(QWidget):
         
         record = None
         if record_summary:
-            # Fetch full record from DB to ensure all fields are available
             rows = execute_read_query(f"SELECT * FROM {self.table_name} WHERE id = ?", (record_summary['id'],))
             if rows:
                 record = rows[0]
             else:
                 QMessageBox.warning(self, "Error", "Record not found.")
-                # We can't return here easily because we are in a lambda slot usually, 
-                # but if we don't return, we crash.
                 return
 
         for field in self.form_fields:
@@ -179,30 +185,33 @@ class BaseCRUDPage(QWidget):
                             idx = inp.findText(str(val))
                             if idx >= 0:
                                 inp.setCurrentIndex(idx)
-                    except IndexError:
-                        pass
+                    except: pass
             else:
                 inp = QLineEdit()
-                if record:
-                    # Use dict access for sqlite3.Row or standard dict
-                    try:
-                        val = record[db_col]
-                        inp.setText(str(val) if val is not None else "")
-                    except IndexError:
-                        inp.setText("")
+                if record and db_col in record.keys() and record[db_col] is not None:
+                    inp.setText(str(record[db_col]))
+            
             layout.addRow(label, inp)
             inputs[db_col] = inp
             
-        save_btn = QPushButton("Save")
-        # Use record['id'] if record is available, else None
         record_id = record['id'] if record else None
-        save_btn.clicked.connect(lambda: self.save_data(dialog, inputs, record_id))
-        layout.addRow(save_btn)
         
-        if dialog.exec():
-            self.refresh_data()
+        btn_box = QHBoxLayout()
+        save_btn = QPushButton("Save")
+        save_btn.setStyleSheet("background-color: #2563EB; color: white; padding: 6px 12px; font-weight: bold;")
+        save_btn.clicked.connect(lambda: self.save_data(dialog, inputs, record_id))
+        
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(dialog.reject)
+        
+        btn_box.addStretch()
+        btn_box.addWidget(cancel_btn)
+        btn_box.addWidget(save_btn)
+        layout.addRow(btn_box)
+        
+        dialog.exec()
 
-    def save_data(self, dialog, inputs, record_id=None):
+    def save_data(self, dialog, inputs, record_id):
         data = {}
         for col, inp in inputs.items():
             if isinstance(inp, QComboBox):
@@ -211,19 +220,23 @@ class BaseCRUDPage(QWidget):
                 data[col] = inp.text()
         
         try:
+            name_val = data.get('name', '')
             if record_id:
                 # Update
                 set_clause = ", ".join([f"{col} = ?" for col in data])
                 values = tuple(data.values()) + (record_id,)
                 execute_write_query(f"UPDATE {self.table_name} SET {set_clause} WHERE id = ?", values)
+                log_audit_action(f"UPDATE_{self.title[:-1].upper()}", self.title, record_id, f"{self.title[:-1]} '{name_val}' updated")
             else:
                 # Insert
                 cols = ", ".join(data.keys())
                 placeholders = ", ".join(["?" for _ in data])
                 values = tuple(data.values())
-                execute_write_query(f"INSERT INTO {self.table_name} ({cols}) VALUES ({placeholders})", values)
+                new_id = execute_write_query(f"INSERT INTO {self.table_name} ({cols}) VALUES ({placeholders})", values)
+                log_audit_action(f"CREATE_{self.title[:-1].upper()}", self.title, new_id or "", f"New {self.title[:-1]} '{name_val}' created")
             
             dialog.accept()
+            self.refresh_data()
         except Exception as e:
             QMessageBox.critical(dialog, "Error", str(e))
 
@@ -685,6 +698,11 @@ class ItemsPage(BaseCRUDPage):
                                 # Reduce batch
                                 execute_write_query("UPDATE stock_batches SET quantity_remaining = ? WHERE id = ?", (b_qty - qty_to_remove, b_id))
                                 qty_to_remove = 0
+
+            if not record_id:
+                log_audit_action("CREATE_ITEM", "Items", item_id or "", f"Item '{data.get('name')}' (SKU: {data.get('sku')}) created")
+            else:
+                log_audit_action("UPDATE_ITEM", "Items", record_id, f"Item '{data.get('name')}' updated")
             
             dialog.accept()
             self.refresh_data()

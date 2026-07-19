@@ -7,9 +7,10 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QFont
 from auth.auth_logic import (
     get_all_users, create_user_by_admin, update_user_role,
-    update_password, delete_user, get_audit_logs
+    update_password, delete_user, get_audit_logs, log_audit_action
 )
 from auth.session import Session
+from ui.icons import get_icon
 
 class AddUserDialog(QDialog):
     def __init__(self, parent=None):
@@ -60,6 +61,7 @@ class AddUserDialog(QDialog):
             
         success = create_user_by_admin(name, email, password, role)
         if success:
+            log_audit_action("CREATE_USER", "User Management", email, f"User '{name}' created with role '{role}'")
             QMessageBox.information(self, "Success", f"User '{name}' created successfully with role '{role.title()}'.")
             self.accept()
         else:
@@ -100,6 +102,7 @@ class EditRoleDialog(QDialog):
         new_role = self.role_combo.currentData()
         success = update_user_role(self.user['id'], new_role)
         if success:
+            log_audit_action("UPDATE_ROLE", "User Management", self.user['id'], f"User '{self.user.get('name')}' role changed to '{new_role}'")
             QMessageBox.information(self, "Success", "User role updated successfully.")
             self.accept()
         else:
@@ -138,6 +141,7 @@ class ResetPasswordDialog(QDialog):
             
         success = update_password(self.user['id'], new_pass)
         if success:
+            log_audit_action("RESET_PASSWORD", "User Management", self.user['id'], f"Password reset for user '{self.user.get('name')}'")
             QMessageBox.information(self, "Success", "Password reset successfully.")
             self.accept()
         else:
@@ -165,7 +169,8 @@ class UserManagementPage(QWidget):
         header_layout.addLayout(title_box)
         header_layout.addStretch()
         
-        self.add_user_btn = QPushButton("+ Add New User")
+        self.add_user_btn = QPushButton(" Add New User")
+        self.add_user_btn.setIcon(get_icon("add", "#FFFFFF", 16))
         self.add_user_btn.setStyleSheet("""
             QPushButton {
                 background-color: #2563EB;
@@ -202,8 +207,9 @@ class UserManagementPage(QWidget):
         filter_layout.addWidget(self.search_input)
         filter_layout.addStretch()
         
-        refresh_btn = QPushButton("🔄 Refresh")
-        refresh_btn.setStyleSheet("padding: 8px 14px; background-color: #F1F5F9; border: 1px solid #CBD5E1; border-radius: 6px;")
+        refresh_btn = QPushButton(" Refresh")
+        refresh_btn.setIcon(get_icon("refresh", "#334155", 14))
+        refresh_btn.setStyleSheet("padding: 8px 14px; background-color: #F1F5F9; border: 1px solid #CBD5E1; border-radius: 6px; font-weight: bold;")
         refresh_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         refresh_btn.clicked.connect(self.load_users)
         filter_layout.addWidget(refresh_btn)
@@ -250,8 +256,9 @@ class UserManagementPage(QWidget):
         audit_header.addWidget(audit_info)
         audit_header.addStretch()
         
-        refresh_audit_btn = QPushButton("🔄 Refresh Logs")
-        refresh_audit_btn.setStyleSheet("padding: 8px 14px; background-color: #F1F5F9; border: 1px solid #CBD5E1; border-radius: 6px;")
+        refresh_audit_btn = QPushButton(" Refresh Logs")
+        refresh_audit_btn.setIcon(get_icon("refresh", "#334155", 14))
+        refresh_audit_btn.setStyleSheet("padding: 8px 14px; background-color: #F1F5F9; border: 1px solid #CBD5E1; border-radius: 6px; font-weight: bold;")
         refresh_audit_btn.clicked.connect(self.load_audit_logs)
         audit_header.addWidget(refresh_audit_btn)
         

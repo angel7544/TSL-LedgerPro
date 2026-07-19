@@ -6,8 +6,9 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from database.db import execute_read_query, execute_write_query
-from auth.auth_logic import update_password, check_password
+from auth.auth_logic import update_password, check_password, log_audit_action
 from auth.session import Session
+from ui.icons import get_icon
 import shutil
 import datetime
 import os
@@ -21,7 +22,7 @@ class SettingsPage(QWidget):
         layout = QVBoxLayout()
         
         title = QLabel("Settings")
-        title.setStyleSheet("font-size: 24px; font-weight: bold;")
+        title.setStyleSheet("font-size: 24px; font-weight: bold; color: #1E293B;")
         layout.addWidget(title)
         
         self.tabs = QTabWidget()
@@ -546,11 +547,13 @@ class SettingsPage(QWidget):
                 
                 with open(filename, 'w', encoding='utf-8') as f:
                     json.dump(dump_data, f, indent=2, default=str)
+                log_audit_action("BACKUP_DB", "Settings", "", f"MySQL database backup created: {filename}")
                 QMessageBox.information(self, "Success", f"MySQL Backup created: {filename}")
             else:
                 filename = f"backup_ledgerpro_{timestamp}.db"
                 if os.path.exists("database/ledgerpro.db"):
                     shutil.copy("database/ledgerpro.db", filename)
+                    log_audit_action("BACKUP_DB", "Settings", "", f"SQLite database backup created: {filename}")
                     QMessageBox.information(self, "Success", f"SQLite Backup created: {filename}")
                 else:
                     QMessageBox.warning(self, "Backup Warning", "Local database file ledgerpro.db not found.")

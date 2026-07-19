@@ -5,8 +5,9 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont, QPalette, QColor, QIcon, QPixmap, QPainter
 import os
-from auth.auth_logic import login_user, signup_user, update_password
+from auth.auth_logic import login_user, signup_user, update_password, log_audit_action
 from auth.session import Session
+from ui.icons import get_icon
 
 from database.db import execute_read_query, execute_write_query
 
@@ -282,7 +283,8 @@ class LoginWindow(QWidget):
         main_layout.addWidget(right_panel, stretch=5)
         
         # Database Setup Button
-        db_setup_btn = QPushButton("⚙ Database Setup")
+        db_setup_btn = QPushButton(" Database Setup")
+        db_setup_btn.setIcon(get_icon("settings", "#666666", 14))
         db_setup_btn.setStyleSheet("background-color: transparent; color: #666666; font-size: 12px; border: none;")
         db_setup_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         db_setup_btn.clicked.connect(self.open_db_setup)
@@ -324,8 +326,10 @@ class LoginWindow(QWidget):
         user = login_user(email, password)
         if user:
             Session.get_instance().set_user(user)
+            log_audit_action("LOGIN", "Auth", user.get('id', ''), f"User '{user.get('name')}' ({user.get('role')}) logged in")
             self.login_successful.emit(user.get('name', email))
         else:
+            log_audit_action("LOGIN_FAILED", "Auth", "", f"Failed login attempt for email/user '{email}'")
             QMessageBox.critical(self, "Login Failed", "Invalid email or password")
 
 class SignupWindow(QWidget):
@@ -487,7 +491,8 @@ class SignupWindow(QWidget):
         main_layout.addWidget(right_panel, stretch=5)
 
         # Database Setup Button
-        db_setup_btn = QPushButton("⚙ Database Setup")
+        db_setup_btn = QPushButton(" Database Setup")
+        db_setup_btn.setIcon(get_icon("settings", "#666666", 14))
         db_setup_btn.setStyleSheet("background-color: transparent; color: #666666; font-size: 12px; border: none;")
         db_setup_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         db_setup_btn.clicked.connect(self.open_db_setup)

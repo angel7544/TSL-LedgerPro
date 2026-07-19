@@ -5,6 +5,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import QDate
 from modules.stock_fifo import get_stock_valuation_summary, add_stock, reduce_stock_fifo
 from database.db import execute_read_query, execute_write_query
+from ui.icons import get_icon
+from auth.auth_logic import log_audit_action
 import csv
 
 class StockPage(QWidget):
@@ -15,19 +17,21 @@ class StockPage(QWidget):
         # Header
         header = QHBoxLayout()
         title = QLabel("Stock Valuation (FIFO)")
-        title.setStyleSheet("font-size: 24px; font-weight: bold;")
+        title.setStyleSheet("font-size: 24px; font-weight: bold; color: #1E293B;")
         
         self.search_bar = QLineEdit()
         self.search_bar.setPlaceholderText("Search items...")
         self.search_bar.setFixedWidth(200)
         self.search_bar.textChanged.connect(self.filter_data)
 
-        import_btn = QPushButton("Import Stock CSV")
-        import_btn.setStyleSheet("background-color: #10B981; color: white; padding: 8px 16px; border-radius: 6px; margin-right: 10px;")
+        import_btn = QPushButton(" Import Stock CSV")
+        import_btn.setIcon(get_icon("save", "#FFFFFF", 16))
+        import_btn.setStyleSheet("background-color: #10B981; color: white; padding: 8px 16px; border-radius: 6px; font-weight: bold;")
         import_btn.clicked.connect(self.import_stock_csv)
 
-        export_btn = QPushButton("Export to CSV")
-        export_btn.setStyleSheet("background-color: #2563EB; color: white; padding: 8px 16px; border-radius: 6px;")
+        export_btn = QPushButton(" Export to CSV")
+        export_btn.setIcon(get_icon("save", "#FFFFFF", 16))
+        export_btn.setStyleSheet("background-color: #2563EB; color: white; padding: 8px 16px; border-radius: 6px; font-weight: bold;")
         export_btn.clicked.connect(self.export_csv)
         
         header.addWidget(title)
