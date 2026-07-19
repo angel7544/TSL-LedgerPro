@@ -403,19 +403,19 @@ class SettingsPage(QWidget):
     def save_profile(self):
         try:
             updates = [
-                ("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ('company_name', self.company_name.text())),
-                ("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ('company_gstin', self.gstin.text())),
-                ("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ('company_address', self.address.text())),
-                ("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ('company_state', self.state.text())),
-                ("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ('company_website', self.website.text())),
-                ("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ('company_email', self.email.text())),
-                ("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ('company_phone', self.phone.text())),
-                ("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ('invoice_prefix', self.invoice_prefix.text())),
-                ("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ('payment_prefix', self.payment_prefix.text())),
-                ("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ('sp1_name', self.sp1_name.text() or 'Type 1')),
-                ("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ('sp2_name', self.sp2_name.text() or 'Type 2')),
-                ("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ('sp3_name', self.sp3_name.text() or 'Type 3')),
-                ("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ('company_logo', self.logo_path))
+                ("REPLACE INTO settings (key, value) VALUES (?, ?)", ('company_name', self.company_name.text())),
+                ("REPLACE INTO settings (key, value) VALUES (?, ?)", ('company_gstin', self.gstin.text())),
+                ("REPLACE INTO settings (key, value) VALUES (?, ?)", ('company_address', self.address.text())),
+                ("REPLACE INTO settings (key, value) VALUES (?, ?)", ('company_state', self.state.text())),
+                ("REPLACE INTO settings (key, value) VALUES (?, ?)", ('company_website', self.website.text())),
+                ("REPLACE INTO settings (key, value) VALUES (?, ?)", ('company_email', self.email.text())),
+                ("REPLACE INTO settings (key, value) VALUES (?, ?)", ('company_phone', self.phone.text())),
+                ("REPLACE INTO settings (key, value) VALUES (?, ?)", ('invoice_prefix', self.invoice_prefix.text())),
+                ("REPLACE INTO settings (key, value) VALUES (?, ?)", ('payment_prefix', self.payment_prefix.text())),
+                ("REPLACE INTO settings (key, value) VALUES (?, ?)", ('sp1_name', self.sp1_name.text() or 'Type 1')),
+                ("REPLACE INTO settings (key, value) VALUES (?, ?)", ('sp2_name', self.sp2_name.text() or 'Type 2')),
+                ("REPLACE INTO settings (key, value) VALUES (?, ?)", ('sp3_name', self.sp3_name.text() or 'Type 3')),
+                ("REPLACE INTO settings (key, value) VALUES (?, ?)", ('company_logo', self.logo_path))
             ]
             for query, params in updates:
                 execute_write_query(query, params)
@@ -519,7 +519,7 @@ class SettingsPage(QWidget):
         json_str = json.dumps(fields)
         
         try:
-            execute_write_query("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, json_str))
+            execute_write_query("REPLACE INTO settings (key, value) VALUES (?, ?)", (key, json_str))
             
             # Update local cache
             self.settings_data[key] = json_str

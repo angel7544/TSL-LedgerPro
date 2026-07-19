@@ -14,6 +14,7 @@ from ui.stock import StockPage
 from ui.reports import ReportsPage
 from ui.payments import PaymentsPage
 from ui.settings import SettingsPage
+from ui.user_management import UserManagementPage
 from ui.styles import STYLESHEET
 from auth.session import Session
 
@@ -353,27 +354,46 @@ class MainWindow(QMainWindow):
         
         sidebar_layout.addWidget(logo_container)
         
-        # Navigation Buttons
+        # Dynamic Navigation & Pages based on User Role
         self.nav_buttons = []
-        self.add_nav_button("Dashboard", 0, sidebar_layout)
-        self.add_nav_button("Customers", 1, sidebar_layout)
-        self.add_nav_button("Vendors", 2, sidebar_layout)
-        self.add_nav_button("Items", 3, sidebar_layout)
-        self.add_nav_button("Invoices", 4, sidebar_layout)
-        self.add_nav_button("Purchases", 5, sidebar_layout)
-        self.add_nav_button("Payments", 6, sidebar_layout)
-        self.add_nav_button("Stock", 7, sidebar_layout)
-        self.add_nav_button("Reports", 8, sidebar_layout)
-        self.add_nav_button("Settings", 9, sidebar_layout)
-        self.add_nav_button("About", 10, sidebar_layout)
+        self.stack = QStackedWidget()
         
+        pages_config = [
+            ("Dashboard", DashboardPage),
+            ("Customers", CustomersPage),
+            ("Vendors", VendorsPage),
+            ("Items", ItemsPage),
+            ("Invoices", InvoicesPage),
+            ("Purchases", BillsPage),
+            ("Payments", PaymentsPage),
+            ("Stock", StockPage),
+            ("Reports", ReportsPage),
+            ("Users", UserManagementPage),
+            ("Settings", SettingsPage),
+            ("About", AboutPage),
+        ]
+        
+        session = Session.get_instance()
+        stack_index = 0
+        for name, widget_cls in pages_config:
+            if session.can_access_module(name):
+                page_instance = widget_cls()
+                self.stack.addWidget(page_instance)
+                self.add_nav_button(name, stack_index, sidebar_layout)
+                stack_index += 1
+                
         sidebar_layout.addStretch()
         
-        # User Info
-        user = Session.get_instance().get_user()
-        user_name = user['name'] if user else "User"
-        user_lbl = QLabel(f"Logged in as:\n{user_name}")
-        user_lbl.setStyleSheet("color: #64748B; padding-left: 20px; font-size: 12px;")
+        # User Info & Role Badge
+        user = session.get_user()
+        user_name = user.get('name', 'User') if user else "User"
+        user_role = session.get_role().upper()
+        
+        role_color = "#7C3AED" if user_role == "OWNER" else ("#2563EB" if user_role == "MANAGER" else "#059669")
+        
+        user_lbl = QLabel(f"Logged in as:<br><b>{user_name}</b><br><span style='color: {role_color}; font-weight: bold;'>[{user_role}]</span>")
+        user_lbl.setTextFormat(Qt.TextFormat.RichText)
+        user_lbl.setStyleSheet("color: #64748B; padding-left: 20px; font-size: 12px; line-height: 1.4;")
         sidebar_layout.addWidget(user_lbl)
         
         logout_btn = QPushButton("Logout")
@@ -401,21 +421,6 @@ class MainWindow(QMainWindow):
         header_layout.addStretch()
         
         content_layout.addWidget(header)
-        
-        # Stacked Pages
-        self.stack = QStackedWidget()
-        self.stack.addWidget(DashboardPage())
-        self.stack.addWidget(CustomersPage())
-        self.stack.addWidget(VendorsPage())
-        self.stack.addWidget(ItemsPage())
-        self.stack.addWidget(InvoicesPage())
-        self.stack.addWidget(BillsPage())
-        self.stack.addWidget(PaymentsPage())
-        self.stack.addWidget(StockPage())
-        self.stack.addWidget(ReportsPage())
-        self.stack.addWidget(SettingsPage())
-        self.stack.addWidget(AboutPage())
-        
         content_layout.addWidget(self.stack)
         
         main_layout.addWidget(content_container)
@@ -434,6 +439,7 @@ class MainWindow(QMainWindow):
             "Payments": QStyle.StandardPixmap.SP_DialogApplyButton,
             "Stock": QStyle.StandardPixmap.SP_DriveHDIcon,
             "Reports": QStyle.StandardPixmap.SP_DialogHelpButton,
+            "Users": QStyle.StandardPixmap.SP_FileDialogInfoView,
             "Settings": QStyle.StandardPixmap.SP_BrowserReload,
             "About": QStyle.StandardPixmap.SP_MessageBoxInformation
         }

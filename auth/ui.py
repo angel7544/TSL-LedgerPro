@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
-    QMessageBox, QFormLayout, QFrame, QCheckBox, QInputDialog
+    QMessageBox, QFormLayout, QFrame, QCheckBox, QInputDialog, QDialog, QDialogButtonBox
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont, QPalette, QColor, QIcon, QPixmap, QPainter
@@ -9,6 +9,76 @@ from auth.auth_logic import login_user, signup_user, update_password
 from auth.session import Session
 
 from database.db import execute_read_query, execute_write_query
+
+class AdminAuthDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Admin Verification Required")
+        self.setFixedWidth(400)
+        
+        layout = QVBoxLayout(self)
+        
+        info = QLabel("Database configuration is restricted. Please enter Administrator (Owner) credentials to continue.")
+        info.setWordWrap(True)
+        info.setStyleSheet("color: #475569; font-size: 13px; margin-bottom: 10px;")
+        layout.addWidget(info)
+        
+        form_layout = QFormLayout()
+        
+        self.email_input = QLineEdit()
+        self.email_input.setPlaceholderText("Admin Email / User ID")
+        
+        self.password_input = QLineEdit()
+        self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self.password_input.setPlaceholderText("Admin Password")
+        
+        form_layout.addRow("Admin Email:", self.email_input)
+        form_layout.addRow("Admin Password:", self.password_input)
+        
+        layout.addLayout(form_layout)
+        layout.addSpacing(15)
+        
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(self.handle_verify)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def handle_verify(self):
+        email = self.email_input.text().strip()
+        password = self.password_input.text()
+        
+        if not email or not password:
+            QMessageBox.warning(self, "Validation Error", "Please enter admin email and password.")
+            return
+            
+        user = login_user(email, password)
+        if user and user.get('role', 'owner') in ['owner', 'admin']:
+            self.accept()
+        else:
+            QMessageBox.critical(self, "Access Denied", "Invalid credentials or non-owner account. Database setup is restricted to Administrators.")
+
+def verify_admin_before_db_setup(parent_widget):
+    try:
+        user_res = execute_read_query("SELECT COUNT(*) FROM users")
+        if user_res:
+            row = user_res[0]
+            user_count = list(row.values())[0] if isinstance(row, dict) else row[0]
+        else:
+            user_count = 0
+    except Exception:
+        user_count = 0
+
+    if user_count == 0:
+        # Initial database setup before any users exist
+        from ui.db_config_dialog import DBConfigDialog
+        dialog = DBConfigDialog(parent_widget)
+        dialog.exec()
+    else:
+        auth_dialog = AdminAuthDialog(parent_widget)
+        if auth_dialog.exec() == QDialog.DialogCode.Accepted:
+            from ui.db_config_dialog import DBConfigDialog
+            dialog = DBConfigDialog(parent_widget)
+            dialog.exec()
 
 class LoginWindow(QWidget):
     login_successful = Signal(str)
@@ -220,9 +290,7 @@ class LoginWindow(QWidget):
         right_layout.addWidget(db_setup_btn, alignment=Qt.AlignmentFlag.AlignRight)
 
     def open_db_setup(self):
-        from ui.db_config_dialog import DBConfigDialog
-        dialog = DBConfigDialog(self)
-        dialog.exec()
+        verify_admin_before_db_setup(self)
 
     def paintEvent(self, event):
         if not self.bg_pixmap.isNull():
@@ -427,9 +495,7 @@ class SignupWindow(QWidget):
         right_layout.addWidget(db_setup_btn, alignment=Qt.AlignmentFlag.AlignRight)
 
     def open_db_setup(self):
-        from ui.db_config_dialog import DBConfigDialog
-        dialog = DBConfigDialog(self)
-        dialog.exec()
+        verify_admin_before_db_setup(self)
 
     def handle_signup(self):
         name = self.name_input.text()

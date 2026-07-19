@@ -66,9 +66,9 @@ def translate_query(query):
         
     # Replace '?' with '%s' for parameterized queries
     q = query.replace('?', '%s')
-    
+
     # SQLite strftime to MySQL
-    q = re.sub(r"strftime\('%Y-%m',\s*([^)]+)\)", r"DATE_FORMAT(\1, '%%Y-%%m')", q)
+    q = re.sub(r"strftime\('%Y-%m',\s*([^)]+)\)", r"DATE_FORMAT(\1, '%Y-%m')", q)
     q = re.sub(r"strftime\('%m',\s*([^)]+)\)", r"MONTH(\1)", q)
     q = re.sub(r"strftime\('%Y',\s*([^)]+)\)", r"YEAR(\1)", q)
     
@@ -79,6 +79,13 @@ def translate_query(query):
     # SQLite GROUP_CONCAT to MySQL
     q = re.sub(r"GROUP_CONCAT\(([^,]+),\s*'([^']+)'\)", r"GROUP_CONCAT(\1 SEPARATOR '\2')", q)
 
+    # SQLite INSERT OR REPLACE / INSERT OR IGNORE syntax to MySQL
+    q = re.sub(r"\bINSERT\s+OR\s+REPLACE\s+INTO\b", "REPLACE INTO", q, flags=re.IGNORECASE)
+    q = re.sub(r"\bINSERT\s+OR\s+IGNORE\s+INTO\b", "INSERT IGNORE INTO", q, flags=re.IGNORECASE)
+
+    # Escape any literal '%' signs that are not part of '%s' placeholders or already doubled '%%' for PyMySQL format safety
+    q = re.sub(r'(?<!%)%(?![s%])', '%%', q)
+
     # Replace reserved word 'key' with backticks if used in SELECT or WHERE clause for settings table
     # Only replace if it's not already backticked and not part of a larger word
     q = re.sub(r"(?<!`)(\bkey\b)(?!`)", "`key`", q)
@@ -87,8 +94,9 @@ def translate_query(query):
 
 def init_db():
     if is_mysql():
-        # Schema creation is handled by mysql_setup.py for MySQL
-        print("Using MySQL backend. Make sure to run mysql_setup.py first if tables don't exist.")
+        # Schema creation is handled by mysql_setup.py for MySQL, but run migrations to ensure role column
+        print("Using MySQL backend.")
+        run_migrations()
         return
 
     if not os.path.exists(DB_NAME):
@@ -115,55 +123,60 @@ def init_db():
     run_migrations()
 
 def run_migrations():
-    if is_mysql():
-        # Migrations are skipped for MySQL. 
-        # MySQL schema should be up to date if created fresh.
-        return
+    if not is_mysql():
+        # V1
+        try:
+            import update_schema
+            update_schema.migrate()
+        except ImportError:
+            pass 
+        except Exception as e:
+            print(f"Migration v1 failed: {e}")
 
-    # V1
-    try:
-        import update_schema
-        update_schema.migrate()
-    except ImportError:
-        pass 
-    except Exception as e:
-        print(f"Migration v1 failed: {e}")
+        # V2
+        try:
+            import update_schema_v2
+            update_schema_v2.migrate()
+        except ImportError:
+            pass
+        except Exception as e:
+            print(f"Migration v2 failed: {e}")
 
-    # V2
+        # V3
+        try:
+            import update_schema_v3
+            update_schema_v3.migrate()
+        except ImportError:
+            pass
+        except Exception as e:
+            print(f"Migration v3 failed: {e}")
+
+        # V4
+        try:
+            import update_schema_v4
+            update_schema_v4.migrate()
+        except ImportError:
+            pass
+        except Exception as e:
+            print(f"Migration v4 failed: {e}")
+
+        # V5
+        try:
+            import update_schema_v5
+            update_schema_v5.migrate()
+        except ImportError:
+            pass
+        except Exception as e:
+            print(f"Migration v5 failed: {e}")
+
+    # V6 (Runs on both SQLite and MySQL to ensure role column exists)
     try:
-        import update_schema_v2
-        update_schema_v2.migrate()
+        import update_schema_v6
+        update_schema_v6.migrate()
     except ImportError:
         pass
     except Exception as e:
-        print(f"Migration v2 failed: {e}")
-
-    # V3
-    try:
-        import update_schema_v3
-        update_schema_v3.migrate()
-    except ImportError:
-        pass
-    except Exception as e:
-        print(f"Migration v3 failed: {e}")
-
-    # V4
-    try:
-        import update_schema_v4
-        update_schema_v4.migrate()
-    except ImportError:
-        pass
-    except Exception as e:
-        print(f"Migration v4 failed: {e}")
-
-    # V5
-    try:
-        import update_schema_v5
-        update_schema_v5.migrate()
-    except ImportError:
-        pass
-    except Exception as e:
-        print(f"Migration v5 failed: {e}")
+        print(f"Migration v6 failed: {e}")
 
 def execute_read_query(query, params=()):
     conn = get_connection()

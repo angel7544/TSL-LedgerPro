@@ -16,12 +16,12 @@ def create_admin_user():
     existing = execute_read_query("SELECT id FROM users WHERE email = ?", (email,))
     
     if existing:
-        print(f"User '{email}' already exists. Updating password...")
-        execute_write_query("UPDATE users SET password_hash = ? WHERE email = ?", (hashed, email))
-        print("Password updated successfully.")
+        print(f"User '{email}' already exists. Updating password and ensuring owner role...")
+        execute_write_query("UPDATE users SET password_hash = ?, role = 'owner' WHERE email = ?", (hashed, email))
+        print("Password and role updated successfully.")
     else:
-        print(f"Creating user '{email}'...")
-        execute_write_query("INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)", 
+        print(f"Creating user '{email}' with owner role...")
+        execute_write_query("INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, 'owner')", 
                            (name, email, hashed))
         print("User created successfully.")
 
