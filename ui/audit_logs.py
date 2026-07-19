@@ -66,7 +66,7 @@ class AuditLogsPage(QWidget):
         self.table = QTableWidget()
         self.table.setColumnCount(8)
         self.table.setHorizontalHeaderLabels([
-            "Log ID", "Timestamp", "User Name", "User ID", "Action", "Module", "Record ID", "Details"
+            "Sl. No.", "Timestamp", "User Name", "User ID", "Action", "Module", "Record ID", "Details"
         ])
         
         header = self.table.horizontalHeader()
@@ -79,6 +79,7 @@ class AuditLogsPage(QWidget):
         header.setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(7, QHeaderView.ResizeMode.Stretch)
         
+        self.table.verticalHeader().setVisible(False)
         self.table.setAlternatingRowColors(True)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
@@ -108,10 +109,10 @@ class AuditLogsPage(QWidget):
             self.all_logs = [dict(r) for r in rows]
             self.apply_filters()
         except Exception as e:
-            print(f"Error fetching audit logs: {e}")
+            print(f"Error loading audit logs: {e}")
 
     def apply_filters(self):
-        search_text = self.search_input.text().strip().lower()
+        search_text = self.search_input.text().lower().strip()
         selected_module = self.module_combo.currentData()
         
         filtered = []
@@ -130,7 +131,8 @@ class AuditLogsPage(QWidget):
             
         self.table.setRowCount(len(filtered))
         for r, log in enumerate(filtered):
-            self.table.setItem(r, 0, QTableWidgetItem(str(log.get('id', ''))))
+            # Serial Number (Sl. No.)
+            self.table.setItem(r, 0, QTableWidgetItem(str(r + 1)))
             self.table.setItem(r, 1, QTableWidgetItem(str(log.get('timestamp', ''))))
             self.table.setItem(r, 2, QTableWidgetItem(str(log.get('user_name', 'System'))))
             self.table.setItem(r, 3, QTableWidgetItem(str(log.get('user_id', '-'))))
@@ -160,9 +162,9 @@ class AuditLogsPage(QWidget):
             return
             
         try:
-            with open(file_path, "w", newline="", encoding="utf-8") as f:
+            with open(file_path, 'w', newline='', encoding='utf-8') as f:
                 writer = csv.writer(f)
-                writer.writerow(["Log ID", "Timestamp", "User Name", "User ID", "Action", "Module", "Record ID", "Details"])
+                writer.writerow(["Sl. No.", "Timestamp", "User Name", "User ID", "Action", "Module", "Record ID", "Details"])
                 for r in range(self.table.rowCount()):
                     row_data = [self.table.item(r, c).text() if self.table.item(r, c) else "" for c in range(8)]
                     writer.writerow(row_data)

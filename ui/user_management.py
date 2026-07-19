@@ -219,7 +219,9 @@ class UserManagementPage(QWidget):
         # User Table
         self.table = QTableWidget()
         self.table.setColumnCount(6)
-        self.table.setHorizontalHeaderLabels(["ID", "Name", "Email", "Role", "Created At", "Actions"])
+        self.table.setHorizontalHeaderLabels(["Sl. No.", "Name", "Email", "Role", "Created At", "Actions"])
+        self.table.verticalHeader().setVisible(False)
+        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         self.table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
@@ -266,7 +268,9 @@ class UserManagementPage(QWidget):
         
         self.audit_table = QTableWidget()
         self.audit_table.setColumnCount(6)
-        self.audit_table.setHorizontalHeaderLabels(["ID", "Timestamp", "User", "Action", "Module", "Details"])
+        self.audit_table.setHorizontalHeaderLabels(["Sl. No.", "Timestamp", "User", "Action", "Module", "Details"])
+        self.audit_table.verticalHeader().setVisible(False)
+        self.audit_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         self.audit_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Stretch)
         self.audit_table.setStyleSheet("""
             QTableWidget {
@@ -301,7 +305,7 @@ class UserManagementPage(QWidget):
         logs = get_audit_logs(limit=100)
         self.audit_table.setRowCount(len(logs))
         for row_idx, log in enumerate(logs):
-            self.audit_table.setItem(row_idx, 0, QTableWidgetItem(str(log.get('id', ''))))
+            self.audit_table.setItem(row_idx, 0, QTableWidgetItem(str(row_idx + 1)))
             self.audit_table.setItem(row_idx, 1, QTableWidgetItem(str(log.get('timestamp', ''))[:19]))
             self.audit_table.setItem(row_idx, 2, QTableWidgetItem(str(log.get('user_name', 'System'))))
             
@@ -334,7 +338,7 @@ class UserManagementPage(QWidget):
         }
         
         for row_idx, user in enumerate(filtered):
-            self.table.setItem(row_idx, 0, QTableWidgetItem(str(user['id'])))
+            self.table.setItem(row_idx, 0, QTableWidgetItem(str(row_idx + 1)))
             
             name_item = QTableWidgetItem(user.get('name', ''))
             name_item.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))

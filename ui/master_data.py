@@ -46,6 +46,7 @@ class BaseCRUDPage(QWidget):
         
         # Table
         self.table = QTableWidget()
+        self.table.verticalHeader().setVisible(False)
         # Add 'Actions' column
         self.table.setColumnCount(len(columns) + 1)
         self.table.setHorizontalHeaderLabels([c[0] for c in columns] + ["Actions"])
