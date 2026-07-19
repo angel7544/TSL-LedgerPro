@@ -2,7 +2,7 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, 
     QLineEdit, QFormLayout, QMessageBox, QFileDialog, QTabWidget,
     QTableWidget, QTableWidgetItem, QHeaderView, QComboBox, QDialog,
-    QDialogButtonBox, QGroupBox
+    QDialogButtonBox, QGroupBox, QScrollArea, QFrame
 )
 from PySide6.QtCore import Qt
 from database.db import execute_read_query, execute_write_query
@@ -53,7 +53,16 @@ class SettingsPage(QWidget):
         self.load_settings()
 
     def init_profile_tab(self):
-        layout = QVBoxLayout()
+        tab_layout = QVBoxLayout(self.profile_tab)
+        tab_layout.setContentsMargins(0, 0, 0, 0)
+        
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(20, 20, 20, 20)
         form_layout = QFormLayout()
         
         self.company_name = QLineEdit()
@@ -77,12 +86,20 @@ class SettingsPage(QWidget):
         # Logo Section
         self.logo_path = ""
         self.logo_label = QLabel("No Logo Selected")
-        self.logo_label.setStyleSheet("border: 1px solid #ccc; padding: 5px;")
+        self.logo_label.setStyleSheet("border: 1px solid #CBD5E1; border-radius: 6px; padding: 5px; background: white;")
         self.logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.logo_label.setFixedSize(150, 80) # Fixed size for preview area
+        self.logo_label.setFixedSize(140, 70)
         
         self.logo_btn = QPushButton("Upload Logo")
+        self.logo_btn.setIcon(get_icon("save", "#334155", 14))
+        self.logo_btn.setFixedWidth(130)
+        self.logo_btn.setStyleSheet("background-color: #F1F5F9; border: 1px solid #CBD5E1; border-radius: 6px; padding: 8px; font-weight: bold;")
         self.logo_btn.clicked.connect(self.upload_logo)
+        
+        logo_box = QHBoxLayout()
+        logo_box.addWidget(self.logo_label)
+        logo_box.addWidget(self.logo_btn)
+        logo_box.addStretch()
         
         form_layout.addRow("Company Name:", self.company_name)
         form_layout.addRow("GSTIN:", self.gstin)
@@ -96,20 +113,33 @@ class SettingsPage(QWidget):
         form_layout.addRow("SP1 Name:", self.sp1_name)
         form_layout.addRow("SP2 Name:", self.sp2_name)
         form_layout.addRow("SP3 Name:", self.sp3_name)
-        form_layout.addRow("Logo:", self.logo_btn)
-        form_layout.addRow("", self.logo_label)
+        form_layout.addRow("Logo:", logo_box)
         
-        save_btn = QPushButton("Save Profile")
-        save_btn.setStyleSheet("background-color: #2563EB; color: white; padding: 10px; border-radius: 6px;")
+        save_btn = QPushButton(" Save Profile")
+        save_btn.setIcon(get_icon("save", "#FFFFFF", 16))
+        save_btn.setFixedWidth(180)
+        save_btn.setStyleSheet("background-color: #2563EB; color: white; padding: 10px 18px; border-radius: 6px; font-weight: bold;")
         save_btn.clicked.connect(self.save_profile)
         
         layout.addLayout(form_layout)
+        layout.addSpacing(15)
         layout.addWidget(save_btn)
         layout.addStretch()
-        self.profile_tab.setLayout(layout)
+        
+        scroll.setWidget(content)
+        tab_layout.addWidget(scroll)
 
     def init_security_tab(self):
-        layout = QVBoxLayout()
+        tab_layout = QVBoxLayout(self.security_tab)
+        tab_layout.setContentsMargins(0, 0, 0, 0)
+        
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(20, 20, 20, 20)
         form_layout = QFormLayout()
         
         self.current_password = QLineEdit()
@@ -125,17 +155,31 @@ class SettingsPage(QWidget):
         form_layout.addRow("New Password:", self.new_password)
         form_layout.addRow("Confirm Password:", self.confirm_password)
         
-        change_btn = QPushButton("Update Password")
-        change_btn.setStyleSheet("background-color: #DC2626; color: white; padding: 10px; border-radius: 6px;")
+        change_btn = QPushButton(" Update Password")
+        change_btn.setIcon(get_icon("lock", "#FFFFFF", 16))
+        change_btn.setFixedWidth(180)
+        change_btn.setStyleSheet("background-color: #DC2626; color: white; padding: 10px 18px; border-radius: 6px; font-weight: bold;")
         change_btn.clicked.connect(self.change_password)
         
         layout.addLayout(form_layout)
+        layout.addSpacing(15)
         layout.addWidget(change_btn)
         layout.addStretch()
-        self.security_tab.setLayout(layout)
+        
+        scroll.setWidget(content)
+        tab_layout.addWidget(scroll)
 
     def init_custom_fields_tab(self):
-        layout = QVBoxLayout()
+        tab_layout = QVBoxLayout(self.custom_fields_tab)
+        tab_layout.setContentsMargins(0, 0, 0, 0)
+        
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(20, 20, 20, 20)
         
         # Module Selector
         top_layout = QHBoxLayout()
@@ -152,16 +196,24 @@ class SettingsPage(QWidget):
         self.fields_table.setColumnCount(3)
         self.fields_table.setHorizontalHeaderLabels(["Field Name", "Type", "Default Value"])
         self.fields_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.fields_table.setMinimumHeight(200)
         layout.addWidget(self.fields_table)
         
         # Buttons
         btn_layout = QHBoxLayout()
-        add_btn = QPushButton("Add Field")
+        add_btn = QPushButton(" Add Field")
+        add_btn.setIcon(get_icon("add", "#2563EB", 14))
+        add_btn.setStyleSheet("background-color: white; border: 1px solid #CBD5E1; color: #2563EB; padding: 8px 14px; border-radius: 6px; font-weight: bold;")
         add_btn.clicked.connect(self.add_custom_field_row)
-        remove_btn = QPushButton("Remove Selected")
+        
+        remove_btn = QPushButton(" Remove Selected")
+        remove_btn.setIcon(get_icon("delete", "#EF4444", 14))
+        remove_btn.setStyleSheet("background-color: white; border: 1px solid #CBD5E1; color: #EF4444; padding: 8px 14px; border-radius: 6px; font-weight: bold;")
         remove_btn.clicked.connect(self.remove_custom_field_row)
-        save_fields_btn = QPushButton("Save Fields")
-        save_fields_btn.setStyleSheet("background-color: #2563EB; color: white;")
+        
+        save_fields_btn = QPushButton(" Save Fields")
+        save_fields_btn.setIcon(get_icon("save", "#FFFFFF", 14))
+        save_fields_btn.setStyleSheet("background-color: #2563EB; color: white; padding: 8px 16px; border-radius: 6px; font-weight: bold;")
         save_fields_btn.clicked.connect(self.save_custom_fields)
         
         btn_layout.addWidget(add_btn)
@@ -170,16 +222,29 @@ class SettingsPage(QWidget):
         btn_layout.addWidget(save_fields_btn)
         
         layout.addLayout(btn_layout)
-        self.custom_fields_tab.setLayout(layout)
+        
+        scroll.setWidget(content)
+        tab_layout.addWidget(scroll)
 
     def init_database_tab(self):
-        layout = QVBoxLayout()
+        tab_layout = QVBoxLayout(self.database_tab)
+        tab_layout.setContentsMargins(0, 0, 0, 0)
+        
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(20, 20, 20, 20)
         
         # Connection Settings
         connection_group = QGroupBox("Database Connection")
         connection_layout = QVBoxLayout()
         
-        db_config_btn = QPushButton("Configure MySQL / SQLite Backend")
+        db_config_btn = QPushButton(" Configure MySQL / SQLite Backend")
+        db_config_btn.setIcon(get_icon("settings", "#2563EB", 16))
+        db_config_btn.setStyleSheet("background-color: white; border: 1px solid #CBD5E1; color: #2563EB; padding: 10px; border-radius: 6px; font-weight: bold;")
         db_config_btn.clicked.connect(self.open_db_config)
         
         connection_layout.addWidget(db_config_btn)
@@ -187,14 +252,17 @@ class SettingsPage(QWidget):
         layout.addWidget(connection_group)
         
         # Backup / Restore
-        backup_group = QGroupBox("Backup & Restore (SQLite Only)")
+        backup_group = QGroupBox("Backup & Restore")
         backup_layout = QVBoxLayout()
         
-        backup_btn = QPushButton("Backup Database (Export)")
+        backup_btn = QPushButton(" Backup Database (Export)")
+        backup_btn.setIcon(get_icon("save", "#FFFFFF", 16))
+        backup_btn.setStyleSheet("background-color: #2563EB; color: white; padding: 10px; border-radius: 6px; font-weight: bold;")
         backup_btn.clicked.connect(self.backup_db)
         
-        import_btn = QPushButton("Import Database (Restore)")
-        import_btn.setStyleSheet("background-color: #F59E0B; color: white;")
+        import_btn = QPushButton(" Import Database (Restore)")
+        import_btn.setIcon(get_icon("refresh", "#FFFFFF", 16))
+        import_btn.setStyleSheet("background-color: #F59E0B; color: white; padding: 10px; border-radius: 6px; font-weight: bold;")
         import_btn.clicked.connect(self.import_db)
         
         backup_layout.addWidget(backup_btn)
@@ -207,19 +275,20 @@ class SettingsPage(QWidget):
         danger_layout = QVBoxLayout()
         
         clear_inv_btn = QPushButton("Clear All Invoices")
-        clear_inv_btn.setStyleSheet("color: red;")
+        clear_inv_btn.setStyleSheet("color: red; border: 1px solid #FCA5A5; background: #FEF2F2; padding: 8px; border-radius: 6px; font-weight: bold;")
         clear_inv_btn.clicked.connect(self.clear_invoices)
         
         clear_bill_btn = QPushButton("Clear All Bills (Purchases)")
-        clear_bill_btn.setStyleSheet("color: red;")
+        clear_bill_btn.setStyleSheet("color: red; border: 1px solid #FCA5A5; background: #FEF2F2; padding: 8px; border-radius: 6px; font-weight: bold;")
         clear_bill_btn.clicked.connect(self.clear_bills)
         
         clear_pay_btn = QPushButton("Clear All Payments")
-        clear_pay_btn.setStyleSheet("color: red;")
+        clear_pay_btn.setStyleSheet("color: red; border: 1px solid #FCA5A5; background: #FEF2F2; padding: 8px; border-radius: 6px; font-weight: bold;")
         clear_pay_btn.clicked.connect(self.clear_payments)
         
-        reset_btn = QPushButton("Reset Entire Database")
-        reset_btn.setStyleSheet("background-color: #EF4444; color: white; font-weight: bold; padding: 10px;")
+        reset_btn = QPushButton(" Reset Entire Database")
+        reset_btn.setIcon(get_icon("delete", "#FFFFFF", 16))
+        reset_btn.setStyleSheet("background-color: #EF4444; color: white; font-weight: bold; padding: 10px; border-radius: 6px;")
         reset_btn.clicked.connect(self.reset_db)
         
         danger_layout.addWidget(clear_inv_btn)
@@ -230,7 +299,8 @@ class SettingsPage(QWidget):
         layout.addWidget(danger_group)
         
         layout.addStretch()
-        self.database_tab.setLayout(layout)
+        scroll.setWidget(content)
+        tab_layout.addWidget(scroll)
 
     def open_db_config(self):
         from ui.db_config_dialog import DBConfigDialog

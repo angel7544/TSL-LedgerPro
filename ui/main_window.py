@@ -356,6 +356,19 @@ class MainWindow(QMainWindow):
         
         sidebar_layout.addWidget(logo_container)
         
+        # Scrollable area for Navigation Buttons
+        nav_scroll = QScrollArea()
+        nav_scroll.setObjectName("SidebarScroll")
+        nav_scroll.setWidgetResizable(True)
+        nav_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        nav_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        
+        nav_content = QWidget()
+        nav_layout = QVBoxLayout(nav_content)
+        nav_layout.setContentsMargins(0, 0, 0, 0)
+        nav_layout.setSpacing(2)
+        nav_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        
         # Dynamic Navigation & Pages based on User Role
         self.nav_buttons = []
         self.stack = QStackedWidget()
@@ -382,12 +395,14 @@ class MainWindow(QMainWindow):
             if session.can_access_module(name):
                 page_instance = widget_cls()
                 self.stack.addWidget(page_instance)
-                self.add_nav_button(name, stack_index, sidebar_layout)
+                self.add_nav_button(name, stack_index, nav_layout)
                 stack_index += 1
                 
-        sidebar_layout.addStretch()
+        nav_layout.addStretch()
+        nav_scroll.setWidget(nav_content)
+        sidebar_layout.addWidget(nav_scroll)
         
-        # User Info & Role Badge
+        # User Info & Role Badge (Fixed at bottom)
         user = session.get_user()
         user_name = user.get('name', 'User') if user else "User"
         user_role = session.get_role().upper()
@@ -396,13 +411,14 @@ class MainWindow(QMainWindow):
         
         user_lbl = QLabel(f"Logged in as:<br><b>{user_name}</b><br><span style='color: {role_color}; font-weight: bold;'>[{user_role}]</span>")
         user_lbl.setTextFormat(Qt.TextFormat.RichText)
-        user_lbl.setStyleSheet("color: #64748B; padding-left: 20px; font-size: 12px; line-height: 1.4;")
+        user_lbl.setStyleSheet("color: #64748B; padding-left: 20px; font-size: 12px; line-height: 1.4; margin-top: 5px;")
         sidebar_layout.addWidget(user_lbl)
         
         logout_btn = QPushButton(" Logout")
         logout_btn.setIcon(get_icon("logout", "#EF4444", 18))
         logout_btn.setIconSize(QSize(18, 18))
-        logout_btn.setStyleSheet("background-color: transparent; color: #EF4444; border: none; text-align: left; padding: 10px 20px; font-weight: bold; cursor: pointer;")
+        logout_btn.setStyleSheet("background-color: transparent; color: #EF4444; border: none; text-align: left; padding: 10px 20px; font-weight: bold;")
+        logout_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         logout_btn.clicked.connect(self.handle_logout)
         sidebar_layout.addWidget(logout_btn)
         
@@ -413,19 +429,6 @@ class MainWindow(QMainWindow):
         content_container.setObjectName("ContentArea")
         content_layout = QVBoxLayout(content_container)
         content_layout.setContentsMargins(0, 0, 0, 0)
-        
-        # Header Bar
-        header = QFrame()
-        header.setObjectName("Header")
-        header_layout = QHBoxLayout(header)
-        header_layout.setContentsMargins(20, 0, 20, 0)
-        
-        # Page Title (Dynamic)
-        self.page_title = QLabel("Dashboard")
-        header_layout.addWidget(self.page_title)
-        header_layout.addStretch()
-        
-        content_layout.addWidget(header)
         content_layout.addWidget(self.stack)
         
         main_layout.addWidget(content_container)
@@ -460,18 +463,8 @@ class MainWindow(QMainWindow):
         layout.addWidget(btn)
         self.nav_buttons.append(btn)
 
-        btn.setCheckable(True)
-        if index == 0:
-            btn.setChecked(True)
-            self.current_nav_btn = btn
-            
-        btn.clicked.connect(lambda: self.switch_page(index, btn))
-        layout.addWidget(btn)
-        self.nav_buttons.append(btn)
-
     def switch_page(self, index, btn):
         self.stack.setCurrentIndex(index)
-        self.page_title.setText(btn.text())
 
         current_widget = self.stack.currentWidget()
         if hasattr(current_widget, "refresh_data"):

@@ -13,16 +13,26 @@ import datetime
 class DashboardPage(QWidget):
     def __init__(self):
         super().__init__()
-        layout = QVBoxLayout()
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         
         # Scroll Area for the entire dashboard
         from PySide6.QtWidgets import QScrollArea
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        
         content_widget = QWidget()
         self.content_layout = QVBoxLayout(content_widget)
+        self.content_layout.setContentsMargins(20, 20, 20, 20)
+        self.content_layout.setSpacing(20)
         self.content_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        
+        # Header Title
+        title_lbl = QLabel("Dashboard Overview")
+        title_lbl.setStyleSheet("font-size: 24px; font-weight: bold; color: #1E293B;")
+        self.content_layout.addWidget(title_lbl)
         
         # Receivables & Payables Section
         rec_pay_layout = QHBoxLayout()
