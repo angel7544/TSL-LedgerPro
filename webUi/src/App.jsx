@@ -5,7 +5,7 @@ import {
   Search, Upload, ArrowRight, Download, Check, AlertTriangle, ShieldCheck,
   ChevronLeft, ChevronRight, Store, Sun, Moon, Building2, Database, Package,
   TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, DollarSign,
-  Activity, PieChart, CreditCard, Palette, Edit, Trash2, MapPin, Phone, Mail
+  Activity, PieChart, CreditCard, Palette, Edit, Trash2, MapPin, Phone, Mail, Send
 } from 'lucide-react';
 
 const API_BASE = '/api';
@@ -1329,9 +1329,25 @@ function MasterDataView({ customers, vendors, items, getHeaders, reload, setting
   );
 }
 
+function getInvoiceStatus(inv) {
+  if (!inv) return 'Sent';
+  if (inv.status === 'Draft' || inv.status === 'Paid' || inv.status === 'Partially Paid') {
+    return inv.status;
+  }
+  if (inv.due_date) {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const dueDateStr = new Date(inv.due_date).toISOString().split('T')[0];
+    if (dueDateStr < todayStr) {
+      return 'Overdue';
+    }
+  }
+  return inv.status === 'Due' ? 'Due' : 'Sent';
+}
+
 // ==================== VIEW: INVOICES ====================
 function InvoicesView({ invoices, customers, items, getHeaders, reload, settings, outlets, user }) {
   const [showCreate, setShowCreate] = useState(false);
+  const [editingInvoiceId, setEditingInvoiceId] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [printLayout, setPrintLayout] = useState('a4'); // 'a4' | 'a5' | 'thermal'
 
@@ -1351,8 +1367,16 @@ function InvoicesView({ invoices, customers, items, getHeaders, reload, settings
   const [termsConditions, setTermsConditions] = useState('');
   const [tdsAmount, setTdsAmount] = useState(0);
   const [tcsAmount, setTcsAmount] = useState(0);
-  const [adjustment, setAdjustment] = useState(0);
-  const [status, setStatus] = useState('Due');
+  const [status, setStatus] = useState('Sent');
+
+  const applyTermsPreset = (days, label) => {
+    const baseDate = invDate ? new Date(invDate) : new Date();
+    const d = new Date(baseDate);
+    d.setDate(d.getDate() + days);
+    const newDueDate = d.toISOString().split('T')[0];
+    setDueDate(newDueDate);
+    setTerms(label || (days === 0 ? 'Due on Receipt' : `Net ${days}`));
+  };
 
   const handlePrintThermal = () => {
     if (!selectedInvoice) return;
@@ -1575,11 +1599,78 @@ function InvoicesView({ invoices, customers, items, getHeaders, reload, settings
     setInvoiceItems(invoiceItems.filter((_, i) => i !== idx));
   };
 
+  const handleOpenCreate = () => {
+    setEditingInvoiceId(null);
+    setCustomerId('');
+    setInvDate(new Date().toISOString().split('T')[0]);
+    setDueDate('');
+    setSalesperson('');
+    setOrderNumber('');
+    setTerms('');
+    setSubject('');
+    setNotes('');
+    setCustomerNotes('');
+    setTermsConditions('');
+    setTdsAmount(0);
+    setTcsAmount(0);
+    setAdjustment(0);
+    setRoundOff(0);
+    setStatus('Sent');
+    setInvoiceItems([{ item_id: '', quantity: 1, rate: 0, discount_percent: 0 }]);
+    setShowCreate(true);
+  };
+
+  const handleEditInvoice = async (invoiceId) => {
+    try {
+      const res = await fetch(`${API_BASE}/invoices/${invoiceId}`, { headers: getHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        const inv = data.invoice;
+        setEditingInvoiceId(inv.id);
+        setCustomerId(inv.customer_id.toString());
+        setInvDate(inv.date ? inv.date.split('T')[0] : '');
+        setDueDate(inv.due_date ? inv.due_date.split('T')[0] : '');
+        setSalesperson(inv.salesperson || '');
+        setOrderNumber(inv.order_number || '');
+        setSelectedOutlet(inv.outlet_id || 1);
+        setTerms(inv.terms || '');
+        setSubject(inv.subject || '');
+        setNotes(inv.notes || '');
+        setCustomerNotes(inv.customer_notes || '');
+        setTermsConditions(inv.terms_conditions || '');
+        setTdsAmount(inv.tds_amount || 0);
+        setTcsAmount(inv.tcs_amount || 0);
+        setAdjustment(inv.adjustment || 0);
+        setRoundOff(inv.round_off || 0);
+        setStatus(inv.status || 'Sent');
+
+        if (data.items && data.items.length > 0) {
+          setInvoiceItems(data.items.map(it => ({
+            item_id: it.item_id.toString(),
+            quantity: it.quantity,
+            rate_type: 'selling_price',
+            rate: it.rate,
+            discount_percent: it.discount_percent || 0
+          })));
+        } else {
+          setInvoiceItems([{ item_id: '', quantity: 1, rate: 0, discount_percent: 0 }]);
+        }
+        setSelectedInvoice(null);
+        setShowCreate(true);
+      }
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${API_BASE}/invoices`, {
-        method: 'POST',
+      const url = editingInvoiceId ? `${API_BASE}/invoices/${editingInvoiceId}` : `${API_BASE}/invoices`;
+      const method = editingInvoiceId ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: getHeaders(),
         body: JSON.stringify({
           customer_id: parseInt(customerId),
@@ -1608,10 +1699,11 @@ function InvoicesView({ invoices, customers, items, getHeaders, reload, settings
       });
       if (res.ok) {
         setShowCreate(false);
+        setEditingInvoiceId(null);
         reload();
       } else {
         const err = await res.json();
-        alert(err.error || 'Failed to create invoice');
+        alert(err.error || 'Failed to save invoice');
       }
     } catch (err) {
       alert(err.message);
@@ -1630,13 +1722,13 @@ function InvoicesView({ invoices, customers, items, getHeaders, reload, settings
     }
   };
 
-  const handleMarkInvoiceDue = async (invoiceId) => {
-    if (!confirm('Mark this draft invoice as Due/Unpaid?')) return;
+  const handleMarkInvoiceSent = async (invoiceId) => {
+    if (!confirm('Mark this draft invoice as Sent?')) return;
     try {
       const res = await fetch(`${API_BASE}/invoices/${invoiceId}/status`, {
         method: 'PUT',
         headers: getHeaders(),
-        body: JSON.stringify({ status: 'Due' })
+        body: JSON.stringify({ status: 'Sent' })
       });
       if (res.ok) {
         reload();
@@ -1687,7 +1779,7 @@ function InvoicesView({ invoices, customers, items, getHeaders, reload, settings
                 <Download size={18} />
                 <span>Export CSV</span>
               </button>
-              <button onClick={() => setShowCreate(true)} className="btn btn-primary">
+              <button onClick={handleOpenCreate} className="btn btn-primary">
                 <Plus size={18} />
                 <span>Create Invoice</span>
               </button>
@@ -1710,39 +1802,57 @@ function InvoicesView({ invoices, customers, items, getHeaders, reload, settings
                 </tr>
               </thead>
               <tbody>
-                {invoices.map(inv => (
-                  <tr key={inv.id}>
-                    <td><strong>{inv.invoice_number}</strong></td>
-                    <td>{inv.customer_name}</td>
-                    <td>{new Date(inv.date).toLocaleDateString()}</td>
-                    <td>{inv.due_date ? new Date(inv.due_date).toLocaleDateString() : '-'}</td>
-                    <td>₹{inv.subtotal.toFixed(2)}</td>
-                    <td>₹{inv.tax_amount.toFixed(2)}</td>
-                    <td>₹{inv.grand_total.toFixed(2)}</td>
-                    <td>
-                      <span style={{
-                        padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem',
-                        background: inv.status === 'Paid' ? 'var(--success-bg)' : inv.status === 'Partially Paid' ? 'var(--warning-bg)' : 'var(--danger-bg)',
-                        color: inv.status === 'Paid' ? 'var(--success)' : inv.status === 'Partially Paid' ? 'var(--warning)' : 'var(--danger)'
-                      }}>
-                        {inv.status}
-                      </span>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button onClick={() => viewInvoiceDetail(inv.id)} className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }}>View Detail</button>
-                        {inv.status === 'Draft' && (
-                          <button onClick={() => handleMarkInvoiceDue(inv.id)} className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.8rem', background: 'var(--warning-bg)', color: 'var(--warning)', border: '1px solid rgba(245,158,11,0.3)', boxShadow: 'none' }}>
-                            Mark Due
+                {invoices.map(inv => {
+                  const effStatus = getInvoiceStatus(inv);
+                  return (
+                    <tr key={inv.id}>
+                      <td><strong>{inv.invoice_number}</strong></td>
+                      <td>{inv.customer_name}</td>
+                      <td>{new Date(inv.date).toLocaleDateString()}</td>
+                      <td>{inv.due_date ? new Date(inv.due_date).toLocaleDateString() : '-'}</td>
+                      <td>₹{inv.subtotal.toFixed(2)}</td>
+                      <td>₹{inv.tax_amount.toFixed(2)}</td>
+                      <td>₹{inv.grand_total.toFixed(2)}</td>
+                      <td>
+                        <span style={{
+                          padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: '600',
+                          background: effStatus === 'Paid' ? 'var(--success-bg)' 
+                                    : effStatus === 'Partially Paid' ? 'var(--warning-bg)' 
+                                    : effStatus === 'Overdue' ? 'var(--danger-bg)'
+                                    : effStatus === 'Draft' ? 'var(--bg-tertiary)'
+                                    : 'rgba(59, 130, 246, 0.15)',
+                          color: effStatus === 'Paid' ? 'var(--success)' 
+                               : effStatus === 'Partially Paid' ? 'var(--warning)' 
+                               : effStatus === 'Overdue' ? 'var(--danger)'
+                               : effStatus === 'Draft' ? 'var(--text-secondary)'
+                               : '#3b82f6'
+                        }}>
+                          {effStatus}
+                        </span>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button onClick={() => viewInvoiceDetail(inv.id)} className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }}>View Detail</button>
+                          {user?.role === 'Admin' && (
+                            <button onClick={() => handleEditInvoice(inv.id)} className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem', color: 'var(--accent-primary)', border: '1px solid var(--border-color)' }}>
+                              <Edit size={14} />
+                              <span>Edit</span>
+                            </button>
+                          )}
+                          {inv.status === 'Draft' && (
+                            <button onClick={() => handleMarkInvoiceSent(inv.id)} className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.8rem', background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)', boxShadow: 'none' }}>
+                              <Send size={13} />
+                              <span>Mark Sent</span>
+                            </button>
+                          )}
+                          <button onClick={() => handleDeleteInvoice(inv.id)} className="btn btn-danger" style={{ padding: '6px 12px', fontSize: '0.8rem', background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.3)', boxShadow: 'none' }}>
+                            Delete
                           </button>
-                        )}
-                        <button onClick={() => handleDeleteInvoice(inv.id)} className="btn btn-danger" style={{ padding: '6px 12px', fontSize: '0.8rem', background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.3)', boxShadow: 'none' }}>
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1751,7 +1861,7 @@ function InvoicesView({ invoices, customers, items, getHeaders, reload, settings
 
       {showCreate && (
         <div className="card">
-          <h2 style={{ marginBottom: '24px' }}>New Sales Invoice</h2>
+          <h2 style={{ marginBottom: '24px' }}>{editingInvoiceId ? 'Edit Sales Invoice' : 'New Sales Invoice'}</h2>
           <form onSubmit={handleCreateSubmit}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '20px', marginBottom: '20px' }}>
               <div className="form-group">
@@ -1781,7 +1891,7 @@ function InvoicesView({ invoices, customers, items, getHeaders, reload, settings
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr 1fr', gap: '20px', marginBottom: '20px' }}>
               <div className="form-group">
                 <label className="form-label">Invoice Date</label>
                 <input className="form-control" type="date" value={invDate} onChange={e => setInvDate(e.target.value)} required />
@@ -1791,8 +1901,34 @@ function InvoicesView({ invoices, customers, items, getHeaders, reload, settings
                 <input className="form-control" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
               </div>
               <div className="form-group">
-                <label className="form-label">Terms</label>
+                <label className="form-label">Payment Terms</label>
                 <input className="form-control" type="text" value={terms} onChange={e => setTerms(e.target.value)} placeholder="Net 30, Due on Receipt" />
+                <div style={{ marginTop: '6px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {[
+                    { label: 'Receipt', days: 0 },
+                    { label: 'Net 15', days: 15 },
+                    { label: 'Net 30', days: 30 },
+                    { label: 'Net 45', days: 45 },
+                    { label: 'Net 60', days: 60 }
+                  ].map(p => (
+                    <button
+                      key={p.days}
+                      type="button"
+                      onClick={() => applyTermsPreset(p.days, p.days === 0 ? 'Due on Receipt' : p.label)}
+                      className="btn btn-secondary"
+                      style={{
+                        padding: '2px 8px',
+                        fontSize: '0.73rem',
+                        borderRadius: '12px',
+                        border: '1px solid var(--border-color)',
+                        background: (terms === p.label || (p.days === 0 && terms === 'Due on Receipt')) ? 'var(--accent-primary)' : 'var(--bg-secondary)',
+                        color: (terms === p.label || (p.days === 0 && terms === 'Due on Receipt')) ? '#ffffff' : 'var(--text-secondary)'
+                      }}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="form-group">
                 <label className="form-label">Subject</label>
@@ -1862,15 +1998,15 @@ function InvoicesView({ invoices, customers, items, getHeaders, reload, settings
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Save Status</label>
                 <select className="form-control" value={status} onChange={e => setStatus(e.target.value)} style={{ marginBottom: 0 }}>
-                  <option value="Due">Unpaid (Due)</option>
+                  <option value="Sent">Sent (Active)</option>
                   <option value="Draft">Draft</option>
                 </select>
               </div>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '30px' }}>
-              <button type="button" onClick={() => setShowCreate(false)} className="btn btn-secondary">Cancel</button>
-              <button type="submit" className="btn btn-primary">Save Invoice</button>
+              <button type="button" onClick={() => { setShowCreate(false); setEditingInvoiceId(null); }} className="btn btn-secondary">Cancel</button>
+              <button type="submit" className="btn btn-primary">{editingInvoiceId ? 'Update Invoice' : 'Save Invoice'}</button>
             </div>
           </form>
         </div>

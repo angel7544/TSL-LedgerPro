@@ -1,0 +1,4 @@
+-- SQL COMMAND:
+SELECT * FROM vendors ORDER BY name ASC
+-- PARAMETERS:
+[]

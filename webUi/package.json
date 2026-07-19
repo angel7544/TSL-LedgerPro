@@ -5,8 +5,8 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"node server.js\" \"vite\"",
-    "server": "node server.js",
+    "dev": "concurrently \"node --watch server.js\" \"vite\"",
+    "server": "node --watch server.js",
     "start": "node server.js",
     "build": "vite build"
   },

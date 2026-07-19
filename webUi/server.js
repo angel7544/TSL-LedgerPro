@@ -691,15 +691,39 @@ app.post('/api/invoices', authenticateToken, async (req, res) => {
     const { order_number, terms, subject, customer_notes, terms_conditions, tds_amount, tcs_amount, adjustment, status } = req.body;
     const finalGrandTotal = grandTotal - (parseFloat(tds_amount) || 0) + (parseFloat(tcs_amount) || 0) + (parseFloat(adjustment) || 0) + (parseFloat(round_off) || 0);
 
+    const invDateVal = (date && date !== '') ? (typeof date === 'string' && date.includes('T') ? date.split('T')[0] : date) : new Date().toISOString().split('T')[0];
+    const dueDateVal = (due_date && due_date !== '') ? (typeof due_date === 'string' && due_date.includes('T') ? due_date.split('T')[0] : due_date) : null;
+
+    const sanitizeStr = (v) => (v === undefined || v === null || v === '') ? null : v;
+
     // 5. Insert Invoice
     const sqlInsertInvoice = `
       INSERT INTO invoices (invoice_number, customer_id, date, due_date, subtotal, tax_amount, grand_total, status, notes, order_number, terms, salesperson, subject, round_off, outlet_id, customer_notes, terms_conditions, tds_amount, tcs_amount, adjustment)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
-    const invStatus = status || 'Unpaid';
-    logSqlStep('create_invoice', sqlInsertInvoice, [invNumber, customer_id, date, due_date, subtotal, totalTax, finalGrandTotal, invStatus, round_off || 0, outlet_id || 1]);
+    const invStatus = status || 'Due';
+    logSqlStep('create_invoice', sqlInsertInvoice, [invNumber, customer_id, invDateVal, dueDateVal, subtotal, totalTax, finalGrandTotal, invStatus]);
     const [invResult] = await connection.query(sqlInsertInvoice, [
-      invNumber, customer_id, date || new Date(), due_date, subtotal, totalTax, finalGrandTotal, invStatus, notes, order_number, terms, salesperson, subject, parseFloat(round_off) || 0, parseInt(outlet_id) || 1, customer_notes, terms_conditions, parseFloat(tds_amount) || 0, parseFloat(tcs_amount) || 0, parseFloat(adjustment) || 0
+      invNumber, 
+      parseInt(customer_id), 
+      invDateVal, 
+      dueDateVal, 
+      subtotal, 
+      totalTax, 
+      finalGrandTotal, 
+      invStatus, 
+      sanitizeStr(notes), 
+      sanitizeStr(order_number), 
+      sanitizeStr(terms), 
+      sanitizeStr(salesperson), 
+      sanitizeStr(subject), 
+      parseFloat(round_off) || 0, 
+      parseInt(outlet_id) || 1, 
+      sanitizeStr(customer_notes), 
+      sanitizeStr(terms_conditions), 
+      parseFloat(tds_amount) || 0, 
+      parseFloat(tcs_amount) || 0, 
+      parseFloat(adjustment) || 0
     ]);
     const invoiceId = invResult.insertId;
 
@@ -720,6 +744,164 @@ app.post('/api/invoices', authenticateToken, async (req, res) => {
   } catch (err) {
     await connection.rollback();
     console.error(err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    connection.release();
+  }
+});
+
+// Update / Edit Invoice (Admin only)
+app.put('/api/invoices/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+
+  if (req.user && req.user.role && req.user.role !== 'Admin') {
+    return res.status(403).json({ error: 'Access denied. Only administrators can edit invoices.' });
+  }
+
+  const { customer_id, date, due_date, items, notes, order_number, terms, salesperson, subject, round_off, outlet_id, customer_notes, terms_conditions, tds_amount, tcs_amount, adjustment, status } = req.body;
+
+  if (!customer_id || !items || items.length === 0) {
+    return res.status(400).json({ error: 'Customer and items are required' });
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // 1. Restore stock for existing items in this invoice
+    const [existingItems] = await connection.query("SELECT item_id, quantity FROM invoice_items WHERE invoice_id = ?", [id]);
+    for (const item of existingItems) {
+      const [itemDef] = await connection.query("SELECT purchase_price FROM items WHERE id = ?", [item.item_id]);
+      const rate = itemDef.length > 0 ? itemDef[0].purchase_price : 0;
+      await connection.query("INSERT INTO stock_batches (item_id, quantity_remaining, purchase_rate, purchase_date) VALUES (?, ?, ?, CURDATE())", [item.item_id, item.quantity, rate]);
+      await connection.query("UPDATE items SET stock_on_hand = stock_on_hand + ? WHERE id = ?", [item.quantity, item.item_id]);
+    }
+
+    // 2. Delete old invoice items
+    await connection.query("DELETE FROM invoice_items WHERE invoice_id = ?", [id]);
+
+    // 3. Get Company details for GST calculation
+    const [settingsRows] = await connection.query("SELECT * FROM settings");
+    const settings = {};
+    settingsRows.forEach(r => settings[r.key] = r.value);
+    const sellerState = (settings['company_state'] || '').trim().toLowerCase();
+
+    // 4. Get Customer details
+    const [custRows] = await connection.query("SELECT * FROM customers WHERE id = ?", [customer_id]);
+    if (custRows.length === 0) throw new Error('Customer not found');
+    const customer = custRows[0];
+
+    let subtotal = 0;
+    let totalTax = 0;
+    const processedItems = [];
+
+    // 5. Process new items and adjust stock
+    for (const entry of items) {
+      const { item_id, quantity, rate, discount_percent } = entry;
+      const [itemRows] = await connection.query("SELECT * FROM items WHERE id = ?", [item_id]);
+      if (itemRows.length === 0) throw new Error(`Item ${item_id} not found`);
+      const item = itemRows[0];
+
+      const itemRate = rate !== undefined ? rate : item.selling_price;
+      const itemGstRate = item.gst_rate || 0;
+
+      const baseAmount = itemRate * quantity;
+      const discountAmount = (baseAmount * (discount_percent || 0)) / 100;
+      const taxableAmount = baseAmount - discountAmount;
+      const gstAmount = (taxableAmount * itemGstRate) / 100;
+
+      subtotal += taxableAmount;
+      totalTax += gstAmount;
+
+      processedItems.push({
+        item_id,
+        quantity,
+        rate: itemRate,
+        discount_percent: discount_percent || 0,
+        gst_percent: itemGstRate,
+        amount: taxableAmount + gstAmount
+      });
+
+      if (item.track_inventory) {
+        let remainingToSell = quantity;
+        const [batches] = await connection.query(`
+          SELECT id, quantity_remaining, purchase_rate 
+          FROM stock_batches 
+          WHERE item_id = ? AND quantity_remaining > 0 
+          ORDER BY purchase_date ASC, id ASC
+        `, [item_id]);
+
+        for (const batch of batches) {
+          if (remainingToSell <= 0) break;
+          const qtyAvailable = batch.quantity_remaining;
+          if (qtyAvailable <= remainingToSell) {
+            remainingToSell -= qtyAvailable;
+            await connection.query("UPDATE stock_batches SET quantity_remaining = 0 WHERE id = ?", [batch.id]);
+          } else {
+            const newQty = qtyAvailable - remainingToSell;
+            remainingToSell = 0;
+            await connection.query("UPDATE stock_batches SET quantity_remaining = ? WHERE id = ?", [newQty, batch.id]);
+          }
+        }
+        await connection.query("UPDATE items SET stock_on_hand = stock_on_hand - ? WHERE id = ?", [quantity, item_id]);
+      }
+    }
+
+    const grandTotal = subtotal + totalTax;
+    const finalGrandTotal = grandTotal - (parseFloat(tds_amount) || 0) + (parseFloat(tcs_amount) || 0) + (parseFloat(adjustment) || 0) + (parseFloat(round_off) || 0);
+
+    const invDateVal = (date && date !== '') ? (typeof date === 'string' && date.includes('T') ? date.split('T')[0] : date) : new Date().toISOString().split('T')[0];
+    const dueDateVal = (due_date && due_date !== '') ? (typeof due_date === 'string' && due_date.includes('T') ? due_date.split('T')[0] : due_date) : null;
+
+    const sanitizeStr = (v) => (v === undefined || v === null || v === '') ? null : v;
+
+    // 6. Update Invoice record
+    const sqlUpdateInvoice = `
+      UPDATE invoices SET
+        customer_id = ?, date = ?, due_date = ?, subtotal = ?, tax_amount = ?, grand_total = ?, status = ?, notes = ?, order_number = ?, terms = ?, salesperson = ?, subject = ?, round_off = ?, outlet_id = ?, customer_notes = ?, terms_conditions = ?, tds_amount = ?, tcs_amount = ?, adjustment = ?
+      WHERE id = ?
+    `;
+    logSqlStep('update_invoice', sqlUpdateInvoice, [customer_id, invDateVal, dueDateVal, subtotal, totalTax, finalGrandTotal, status || 'Due', id]);
+    await connection.query(sqlUpdateInvoice, [
+      parseInt(customer_id), 
+      invDateVal, 
+      dueDateVal, 
+      subtotal, 
+      totalTax, 
+      finalGrandTotal, 
+      status || 'Due', 
+      sanitizeStr(notes), 
+      sanitizeStr(order_number), 
+      sanitizeStr(terms), 
+      sanitizeStr(salesperson), 
+      sanitizeStr(subject), 
+      parseFloat(round_off) || 0, 
+      parseInt(outlet_id) || 1, 
+      sanitizeStr(customer_notes), 
+      sanitizeStr(terms_conditions), 
+      parseFloat(tds_amount) || 0, 
+      parseFloat(tcs_amount) || 0, 
+      parseFloat(adjustment) || 0, 
+      id
+    ]);
+
+    // 7. Insert updated invoice items
+    for (const pi of processedItems) {
+      const sqlInsertItem = `
+        INSERT INTO invoice_items (invoice_id, item_id, quantity, rate, discount_percent, gst_percent, amount)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `;
+      await connection.query(sqlInsertItem, [
+        id, pi.item_id, pi.quantity, pi.rate, pi.discount_percent, pi.gst_percent, pi.amount
+      ]);
+    }
+
+    await connection.commit();
+    res.json({ success: true, invoiceId: id });
+
+  } catch (err) {
+    await connection.rollback();
+    console.error('Update Invoice Error:', err);
     res.status(500).json({ error: err.message });
   } finally {
     connection.release();
@@ -1009,6 +1191,67 @@ app.get('/api/payments', authenticateToken, async (req, res) => {
     `;
     logSqlStep('get_payments', sql);
     const [rows] = await pool.query(sql);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Fetch Unpaid Invoices for Customer (Record Payment)
+app.get('/api/payments/unpaid-invoices/:customerId', authenticateToken, async (req, res) => {
+  const { customerId } = req.params;
+  try {
+    const sql = `
+      SELECT i.id, i.invoice_number, i.date, i.due_date, i.grand_total, i.status,
+             (i.grand_total - COALESCE(SUM(p.amount), 0)) as balance_due
+      FROM invoices i
+      LEFT JOIN payments p ON i.id = p.invoice_id
+      WHERE i.customer_id = ? AND i.status != 'Draft'
+      GROUP BY i.id, i.invoice_number, i.date, i.due_date, i.grand_total, i.status
+      HAVING balance_due > 0.01
+      ORDER BY i.date ASC, i.id ASC
+    `;
+    logSqlStep('get_unpaid_invoices_for_customer', sql, [customerId]);
+    const [rows] = await pool.query(sql, [customerId]);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Fetch Customer Credits Balance
+app.get('/api/payments/credits/:customerId', authenticateToken, async (req, res) => {
+  const { customerId } = req.params;
+  try {
+    const sql = `
+      SELECT COALESCE(SUM(amount), 0) as total_credits
+      FROM payments
+      WHERE customer_id = ? AND invoice_id IS NULL
+    `;
+    logSqlStep('get_customer_credits', sql, [customerId]);
+    const [rows] = await pool.query(sql, [customerId]);
+    res.json({ credits: rows[0].total_credits || 0 });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Fetch Unpaid Bills for Vendor (Record Outbound Payment)
+app.get('/api/payments/unpaid-bills/:vendorId', authenticateToken, async (req, res) => {
+  const { vendorId } = req.params;
+  try {
+    const sql = `
+      SELECT b.id, b.bill_number, b.date, b.due_date, b.grand_total, b.status,
+             (b.grand_total - COALESCE(SUM(p.amount), 0)) as balance_due
+      FROM bills b
+      LEFT JOIN payments p ON b.id = p.bill_id
+      WHERE b.vendor_id = ? AND b.status != 'Draft'
+      GROUP BY b.id, b.bill_number, b.date, b.due_date, b.grand_total, b.status
+      HAVING balance_due > 0.01
+      ORDER BY b.date ASC, b.id ASC
+    `;
+    logSqlStep('get_unpaid_bills_for_vendor', sql, [vendorId]);
+    const [rows] = await pool.query(sql, [vendorId]);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
