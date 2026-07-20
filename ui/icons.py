@@ -4,7 +4,7 @@ from PySide6.QtCore import Qt, QRectF, QPointF
 
 class IconEngine:
     """
-    High-DPI Vector QIcon Factory for LedgerPro Desktop.
+    High-DPI Vector QIcon Factory for TSL SwiftBill ERP.
     Generates clean, professional UI icons via QPainter without external file dependencies or emojis.
     """
     @staticmethod

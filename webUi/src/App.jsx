@@ -238,8 +238,8 @@ export default function App() {
         {/* Left Side: Blue Branding Panel */}
         <div className="login-left">
           <div style={{ maxWidth: '320px' }}>
-            <img src="/br31logo.png" alt="LedgerPro Logo" style={{ width: '150px', height: 'auto', marginBottom: '24px', borderRadius: '16px', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }} onError={(e) => { e.target.style.display = 'none'; }} />
-            <h1 style={{ fontSize: '2.5rem', fontWeight: '800', color: '#ffffff', marginBottom: '12px', fontFamily: 'var(--font-family-display)' }}>LedgerPro Desktop</h1>
+            <img src="/br31logo.png" alt="TSL SwiftBill ERP Logo" style={{ width: '150px', height: 'auto', marginBottom: '24px', borderRadius: '16px', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }} onError={(e) => { e.target.style.display = 'none'; }} />
+            <h1 style={{ fontSize: '2.5rem', fontWeight: '800', color: '#ffffff', marginBottom: '12px', fontFamily: 'var(--font-family-display)' }}>TSL SwiftBill ERP</h1>
             <p style={{ color: '#bfdbfe', fontSize: '1.1rem', marginBottom: '40px' }}>Professional Accounting & Inventory</p>
             
             <div style={{ fontSize: '0.85rem', color: '#93c5fd', marginTop: '60px', lineHeight: '1.6' }}>
@@ -500,7 +500,7 @@ export default function App() {
           flexShrink: 0
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 'bold' }}>TSL LEDGER PRO</span>
+            <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.15em', fontWeight: 'bold' }}>TSL SWIFTBILL ERP</span>
             <span style={{ color: 'var(--text-muted)' }}>/</span>
             <span style={{ fontSize: '0.9rem', fontWeight: '700', textTransform: 'capitalize', color: 'var(--text-primary)' }}>{currentView === 'master' ? 'Master Data' : currentView}</span>
           </div>
@@ -2171,7 +2171,7 @@ function InvoicesView({ invoices, customers, items, getHeaders, reload, settings
             {/* Receipt Footer */}
             <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '0.78rem', borderTop: '1px dashed #ddd', paddingTop: '10px' }}>
               <p style={{ margin: 0 }}>Thank you for shopping with us!</p>
-              <p style={{ margin: '2px 0 0', opacity: 0.7 }}>Powered by TSL LedgerPro</p>
+              <p style={{ margin: '2px 0 0', opacity: 0.7 }}>Powered by TSL SwiftBill ERP</p>
             </div>
 
           </div>
@@ -2663,7 +2663,7 @@ function BillsView({ bills, vendors, items, getHeaders, reload, settings }) {
             {/* Bill Footer */}
             <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '0.78rem', borderTop: '1px dashed #ddd', paddingTop: '10px' }}>
               <p style={{ margin: 0 }}>Verified Inventory Receipt</p>
-              <p style={{ margin: '2px 0 0', opacity: 0.7 }}>Powered by TSL LedgerPro</p>
+              <p style={{ margin: '2px 0 0', opacity: 0.7 }}>Powered by TSL SwiftBill ERP</p>
             </div>
 
           </div>

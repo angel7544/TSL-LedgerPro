@@ -87,7 +87,7 @@ class LoginWindow(QWidget):
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Login - LedgerPro")
+        self.setWindowTitle("Login - TSL SwiftBill ERP")
         self.setFixedSize(900, 600) # Wide layout
         
         base_dir = os.path.dirname(os.path.dirname(__file__))
@@ -184,7 +184,7 @@ class LoginWindow(QWidget):
         left_layout.addSpacing(40)
         
         # App Title
-        title = QLabel("LedgerPro Desktop")
+        title = QLabel("TSL SwiftBill ERP")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setStyleSheet("font-size: 28px; font-weight: bold; color: #FFFFFF;")
         left_layout.addWidget(title)
@@ -338,7 +338,7 @@ class SignupWindow(QWidget):
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Sign Up - LedgerPro")
+        self.setWindowTitle("Sign Up - TSL SwiftBill ERP")
         self.setFixedSize(900, 600)  # Match LoginWindow size
         self.setObjectName("SignupWindow")
         
@@ -414,7 +414,7 @@ class SignupWindow(QWidget):
         left_layout.addLayout(logo_container)
         left_layout.addSpacing(40)
         
-        title = QLabel("LedgerPro Desktop")
+        title = QLabel("TSL SwiftBill ERP")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setStyleSheet("font-size: 28px; font-weight: bold; color: #FFFFFF;")
         left_layout.addWidget(title)
@@ -449,7 +449,7 @@ class SignupWindow(QWidget):
         form_title.setStyleSheet("font-size: 24px; font-weight: bold; color: #003366; margin-bottom: 10px;")
         right_layout.addWidget(form_title)
         
-        form_sub = QLabel("Join LedgerPro today.")
+        form_sub = QLabel("Join TSL SwiftBill ERP today.")
         form_sub.setStyleSheet("font-size: 14px; color: #666666; margin-bottom: 20px;")
         right_layout.addWidget(form_sub)
         

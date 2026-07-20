@@ -19,7 +19,7 @@ from ui.main_window import MainWindow
 class AppController:
     def __init__(self):
         self.app = QApplication(sys.argv)
-        self.app.setApplicationName("LedgerPro Desktop")
+        self.app.setApplicationName("TSL SwiftBill ERP")
         base_dir = os.path.dirname(__file__)
         icon_candidates = [
             os.path.join(base_dir, "tsl_icon.ico"),

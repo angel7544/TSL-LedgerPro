@@ -197,7 +197,7 @@ def generate_thermal_receipt(invoice_data, paper_width_mm=80, output_path=None):
 
     # Footer
     elements.append(Paragraph("<b>Thank you for shopping with us!</b>", center_style))
-    elements.append(Paragraph("Powered by LedgerPro POS v3.5.0", center_style))
+    elements.append(Paragraph("Powered by TSL SwiftBill ERP POS v3.5.0", center_style))
 
     doc.build(elements)
     return output_path

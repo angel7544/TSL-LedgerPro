@@ -1,14 +1,14 @@
-# LedgerPro Desktop - Enterprise Accounting & Inventory Management
+# TSL SwiftBill ERP - Enterprise SME Billing, Accounting & Inventory Management
 
-![LedgerPro Logo](assets/br31logo.png)
+![TSL SwiftBill ERP Logo](assets/br31logo.png)
 
-**LedgerPro Desktop** is a high-performance, enterprise-grade accounting, billing, and inventory management desktop application built specifically for small to medium-sized businesses. Powered by **Python (PySide6)** and backed by a robust **MySQL Database Engine**, LedgerPro delivers multi-user networking, real-time stock FIFO tracking, GST-compliant invoicing, audit logging, and thermal POS receipt printing.
+**TSL SwiftBill ERP** is a high-performance, enterprise-grade accounting, SME billing, and inventory management desktop application built specifically for small to medium-sized businesses. Powered by **Python (PySide6)** and backed by a robust **MySQL Database Engine**, TSL SwiftBill ERP delivers multi-user networking, real-time stock FIFO tracking, GST-compliant invoicing, audit logging, and thermal POS receipt printing.
 
 ---
 
 ## 🏗️ System Architecture & Data Flow
 
-LedgerPro utilizes a modular architecture designed for high throughput, data integrity, and low-latency database queries across multi-user local networks or cloud MySQL servers.
+TSL SwiftBill ERP utilizes a modular architecture designed for high throughput, data integrity, and low-latency database queries across multi-user local networks or cloud MySQL servers.
 
 ```mermaid
 graph TD

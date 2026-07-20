@@ -69,13 +69,13 @@ class SplashScreen(QWidget):
                     break
         layout.addWidget(logo_img)
 
-        logo = QLabel("LedgerPro")
+        logo = QLabel("TSL SwiftBill ERP")
         logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        logo.setStyleSheet("font-size: 32px; font-weight: bold; color: #2563EB; margin-bottom: 10px;")
+        logo.setStyleSheet("font-size: 30px; font-weight: bold; color: #2563EB; margin-bottom: 10px;")
         layout.addWidget(logo)
         
         # Loading Text
-        self.loading_label = QLabel("Initializing LedgerPro...")
+        self.loading_label = QLabel("Initializing TSL SwiftBill ERP...")
         self.loading_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.loading_label)
         

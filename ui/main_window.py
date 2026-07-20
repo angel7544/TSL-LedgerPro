@@ -37,7 +37,7 @@ class AboutWidget(QWidget):
         left_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         
         # App Header
-        app_name = QLabel("LedgerPro Desktop")
+        app_name = QLabel("TSL SwiftBill ERP")
         app_name.setStyleSheet("font-size: 28px; font-weight: bold; color: #2563EB;")
         left_layout.addWidget(app_name)
         
@@ -68,7 +68,7 @@ class AboutWidget(QWidget):
         content_text.setStyleSheet("background-color: transparent; font-size: 14px; line-height: 1.6;")
         content_text.setHtml(
             "<h3>Overview (Version 3.5.0):</h3>"
-            "<p><b>LedgerPro Desktop v3.5.0</b> is a comprehensive, professional-grade accounting and inventory management solution designed for small and medium businesses. "
+            "<p><b>TSL SwiftBill ERP v3.5.0</b> is a comprehensive, professional-grade accounting, SME billing, and inventory management solution designed for small and medium businesses. "
             "Built with <b>Python</b>, <b>PySide6</b>, <b>SQLite3</b>, and <b>MySQL</b>, it delivers high performance, multi-user role access, thermal receipt printing, and offline-first reliability.</p>"
             
             "<h3>What's New in Version 3.5.0:</h3>"
@@ -95,7 +95,7 @@ class AboutWidget(QWidget):
             "<p>Built using <b>Python 3.11+</b>, <b>PySide6</b> (Qt for Python), <b>SQLite3 / PyMySQL</b>, and <b>ReportLab</b>.</p>"
             
             "<p style='color: #64748B; font-size: 12px; margin-top: 20px;'>"
-            "<i>© 2026 LedgerPro Desktop. All rights reserved. Powered by Br31Technologies.</i>"
+            "<i>© 2026 TSL SwiftBill ERP. All rights reserved. Powered by Br31Technologies.</i>"
             "</p>"
         )
         
@@ -253,7 +253,7 @@ class AboutWidget(QWidget):
 class AboutDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("About LedgerPro Desktop")
+        self.setWindowTitle("About TSL SwiftBill ERP")
         self.setMinimumSize(800, 500)
         
         layout = QVBoxLayout(self)
@@ -290,7 +290,7 @@ class AboutPage(QWidget):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("LedgerPro Desktop")
+        self.setWindowTitle("TSL SwiftBill ERP")
         self.resize(1200, 800)
         
         # Set window flags to support minimize and maximize
@@ -350,8 +350,8 @@ class MainWindow(QMainWindow):
             logo_lbl.setPixmap(pix)
             logo_layout.addWidget(logo_lbl)
 
-        app_title = QLabel("LedgerPro")
-        app_title.setStyleSheet("font-size: 20px; font-weight: bold; color: #1E293B;")
+        app_title = QLabel("TSL SwiftBill ERP")
+        app_title.setStyleSheet("font-size: 16px; font-weight: bold; color: #1E293B;")
         logo_layout.addWidget(app_title)
         
         sidebar_layout.addWidget(logo_container)
