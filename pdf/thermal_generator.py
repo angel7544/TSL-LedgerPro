@@ -331,21 +331,52 @@ def generate_thermal_receipt(invoice_data, paper_width_mm=80, output_path=None):
     ]))
     elems.append(gst_t)
 
-    # Discount line (exclusive mode only, if any)
-    if not is_inclusive:
-        disc_amt = float(invoice_data.get('discount_amount', 0.0) or 0.0)
-        if disc_amt > 0:
-            d_t = Table(
-                [[Paragraph('Discount :', sLb), Paragraph(f'- {INR}{disc_amt:.2f}', sRb)]],
-                colWidths=[pw * 0.60, pw * 0.40],
-            )
-            d_t.setStyle(TableStyle([
-                ('LEFTPADDING',   (0,0),(-1,-1), 0),
-                ('RIGHTPADDING',  (0,0),(-1,-1), 0),
-                ('TOPPADDING',    (0,0),(-1,-1), 2),
-                ('BOTTOMPADDING', (0,0),(-1,-1), 2),
-            ]))
-            elems.append(d_t)
+    # Discount line (if any)
+    disc_amt = float(invoice_data.get('discount_amount', 0.0) or 0.0)
+    if disc_amt > 0:
+        d_t = Table(
+            [[Paragraph('Discount :', sLb), Paragraph(f'-{INR}{disc_amt:.2f}', sRb)]],
+            colWidths=[pw * 0.60, pw * 0.40],
+        )
+        d_t.setStyle(TableStyle([
+            ('LEFTPADDING',   (0,0),(-1,-1), 0),
+            ('RIGHTPADDING',  (0,0),(-1,-1), 0),
+            ('TOPPADDING',    (0,0),(-1,-1), 1),
+            ('BOTTOMPADDING', (0,0),(-1,-1), 1),
+        ]))
+        elems.append(d_t)
+
+    # Adjustment line (if non-zero)
+    adj_val = float(invoice_data.get('adjustment', 0.0) or 0.0)
+    if adj_val != 0.0:
+        sign_str = '+' if adj_val > 0 else ''
+        adj_t = Table(
+            [[Paragraph('Adjustment :', sLb), Paragraph(f'{sign_str}{INR}{adj_val:.2f}', sRb)]],
+            colWidths=[pw * 0.60, pw * 0.40],
+        )
+        adj_t.setStyle(TableStyle([
+            ('LEFTPADDING',   (0,0),(-1,-1), 0),
+            ('RIGHTPADDING',  (0,0),(-1,-1), 0),
+            ('TOPPADDING',    (0,0),(-1,-1), 1),
+            ('BOTTOMPADDING', (0,0),(-1,-1), 1),
+        ]))
+        elems.append(adj_t)
+
+    # Round Off line (if non-zero)
+    round_val = float(invoice_data.get('round_off', 0.0) or 0.0)
+    if round_val != 0.0:
+        sign_str = '+' if round_val > 0 else ''
+        round_t = Table(
+            [[Paragraph('Round Off :', sLb), Paragraph(f'{sign_str}{INR}{round_val:.2f}', sRb)]],
+            colWidths=[pw * 0.60, pw * 0.40],
+        )
+        round_t.setStyle(TableStyle([
+            ('LEFTPADDING',   (0,0),(-1,-1), 0),
+            ('RIGHTPADDING',  (0,0),(-1,-1), 0),
+            ('TOPPADDING',    (0,0),(-1,-1), 1),
+            ('BOTTOMPADDING', (0,0),(-1,-1), 1),
+        ]))
+        elems.append(round_t)
 
     # Payable — bold, prominent
     pay_t = Table(

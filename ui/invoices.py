@@ -206,28 +206,64 @@ class ViewInvoiceDialog(QDialog):
         {invoice_data['customer_address'] or ''}<br>
         GSTIN: {invoice_data.get('customer_gstin', '')}</p>
         
-        <table border="1" cellspacing="0" cellpadding="5" width="100%">
-            <tr>
-                <th>Item</th>
-                <th>Qty</th>
-                <th>Rate</th>
-                <th>Total</th>
+        <table border="1" cellspacing="0" cellpadding="5" width="100%" style="border-collapse: collapse; font-size: 13px;">
+            <tr style="background-color: #f1f5f9;">
+                <th align="left">Item</th>
+                <th align="center">Qty</th>
+                <th align="right">Rate (Excl)</th>
+                <th align="right">Taxable Val</th>
+                <th align="center">GST %</th>
+                <th align="right">GST Amt</th>
+                <th align="right">Total (Incl)</th>
             </tr>
         """
         
         for item in invoice_data['items']:
+            name = item.get('name') or item.get('item_name') or 'Item'
+            qty = float(item.get('quantity', 0))
+            qty_str = str(int(qty)) if qty == int(qty) else f"{qty}"
+            rate = float(item.get('rate', 0))
+            disc = float(item.get('discount_percent', 0))
+            taxable = qty * rate * (1 - disc / 100)
+            gst_pct = float(item.get('gst_percent', 0))
+            gst_amt = taxable * (gst_pct / 100)
+            amt = float(item.get('amount', taxable + gst_amt))
+            
             html += f"""
             <tr>
-                <td>{item['name']}</td>
-                <td>{item['quantity']}</td>
-                <td>{item['rate']}</td>
-                <td>{item['amount']}</td>
+                <td>{name}</td>
+                <td align="center">{qty_str}</td>
+                <td align="right">₹{rate:.2f}</td>
+                <td align="right">₹{taxable:.2f}</td>
+                <td align="center">{gst_pct}%</td>
+                <td align="right">₹{gst_amt:.2f}</td>
+                <td align="right">₹{amt:.2f}</td>
             </tr>
             """
             
+        subtotal = float(invoice_data.get('subtotal', 0))
+        tax_amount = float(invoice_data.get('tax_amount', 0))
+        discount_amount = float(invoice_data.get('discount_amount', 0))
+        adjustment = float(invoice_data.get('adjustment', 0))
+        round_off = float(invoice_data.get('round_off', 0))
+        grand_total = float(invoice_data.get('grand_total', subtotal + tax_amount))
+
         html += f"""
         </table>
-        <h3 align="right">Total: ₹{invoice_data['grand_total']:.2f}</h3>
+        <div align="right" style="margin-top: 10px; font-size: 13px;">
+            <p style="margin: 2px 0;">Subtotal (Excl. GST): <b>₹{subtotal:.2f}</b></p>
+            <p style="margin: 2px 0;">Tax Amount (GST): <b>₹{tax_amount:.2f}</b></p>
+        """
+        if discount_amount > 0:
+            html += f"""<p style="margin: 2px 0;">Discount: <b>-₹{discount_amount:.2f}</b></p>"""
+        if adjustment != 0:
+            html += f"""<p style="margin: 2px 0;">Adjustment: <b>₹{adjustment:+.2f}</b></p>"""
+        if round_off != 0:
+            html += f"""<p style="margin: 2px 0;">Round Off: <b>₹{round_off:+.2f}</b></p>"""
+
+        html += f"""
+            <h3 style="margin: 6px 0; color: #0f172a;">Grand Total: ₹{grand_total:.2f}</h3>
+        </div>
         """
         
         # Custom Fields Display

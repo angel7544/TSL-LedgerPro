@@ -175,21 +175,29 @@ def generate_invoice_pdf(invoice_data, filename="invoice.pdf"):
     # Table Start Position
     table_y = y - 100
     
-    # Items Table
-    data = [["Item", "Qty", "Rate", "Disc %", "GST %", "Amount"]]
+    # Items Table with explicit Exclusive & Inclusive GST columns
+    data = [["Item", "Qty", "Rate (Excl)", "Taxable Val", "GST %", "GST Amt", "Total (Incl)"]]
     
     for item in invoice_data.get('items', []):
         name = item.get('name', 'Unknown')
-        qty = str(item.get('quantity', 0))
-        rate = f"{item.get('rate', 0):.2f}"
-        disc = f"{item.get('discount_percent', 0)}%"
-        gst = f"{item.get('gst_percent', 0)}%"
-        amt = f"{item.get('amount', 0):.2f}"
+        qty_num = float(item.get('quantity', 0))
+        qty = str(int(qty_num)) if qty_num == int(qty_num) else f"{qty_num}"
+        rate_num = float(item.get('rate', 0))
+        rate = f"{rate_num:.2f}"
+        disc_num = float(item.get('discount_percent', 0))
+        taxable_num = qty_num * rate_num * (1 - disc_num / 100)
+        taxable_val = f"{taxable_num:.2f}"
+        gst_num = float(item.get('gst_percent', 0))
+        gst = f"{gst_num}%"
+        gst_amt_num = taxable_num * (gst_num / 100)
+        gst_amt = f"{gst_amt_num:.2f}"
+        amt_num = float(item.get('amount', taxable_num + gst_amt_num))
+        amt = f"{amt_num:.2f}"
         
-        data.append([name, qty, rate, disc, gst, amt])
+        data.append([name, qty, rate, taxable_val, gst, gst_amt, amt])
         
-    # Column Widths
-    col_widths = [220, 50, 70, 50, 50, 90]
+    # Column Widths (total printable width = 535pt)
+    col_widths = [155, 40, 65, 75, 45, 65, 90]
     
     table = Table(data, colWidths=col_widths)
     table.setStyle(TableStyle([
@@ -197,8 +205,10 @@ def generate_invoice_pdf(invoice_data, filename="invoice.pdf"):
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('ALIGN', (0, 0), (0, -1), 'LEFT'), # Align items left
+        ('ALIGN', (2, 1), (-1, -1), 'RIGHT'), # Align numbers right
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('TOPPADDING', (0, 0), (-1, 0), 8),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
     ]))
     
