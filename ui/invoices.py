@@ -251,20 +251,26 @@ class ViewInvoiceDialog(QDialog):
         print_btn.setIcon(get_icon("print", "#1E293B", 16))
         print_btn.clicked.connect(self.print_pdf)
 
-        print_thermal_80_btn = QPushButton(" POS Receipt (80mm)")
+        print_thermal_80_btn = QPushButton(" POS 80mm (Excl. GST)")
         print_thermal_80_btn.setIcon(get_icon("pos_receipt", "#1E293B", 16))
         print_thermal_80_btn.setStyleSheet("background-color: #F1F5F9; border: 1px solid #CBD5E1; border-radius: 4px; padding: 6px 10px; font-weight: 500;")
-        print_thermal_80_btn.clicked.connect(lambda: self.print_thermal(80))
-        
-        print_thermal_58_btn = QPushButton(" POS Receipt (58mm)")
+        print_thermal_80_btn.clicked.connect(lambda: self.print_thermal(80, gst_mode='exclusive'))
+
+        print_thermal_80_incl_btn = QPushButton(" POS 80mm (Incl. GST)")
+        print_thermal_80_incl_btn.setIcon(get_icon("pos_receipt", "#1E293B", 16))
+        print_thermal_80_incl_btn.setStyleSheet("background-color: #EFF6FF; border: 1px solid #93C5FD; border-radius: 4px; padding: 6px 10px; font-weight: 500; color: #1D4ED8;")
+        print_thermal_80_incl_btn.clicked.connect(lambda: self.print_thermal(80, gst_mode='inclusive'))
+
+        print_thermal_58_btn = QPushButton(" POS 58mm (Excl. GST)")
         print_thermal_58_btn.setIcon(get_icon("pos_receipt", "#1E293B", 16))
         print_thermal_58_btn.setStyleSheet("background-color: #F1F5F9; border: 1px solid #CBD5E1; border-radius: 4px; padding: 6px 10px; font-weight: 500;")
-        print_thermal_58_btn.clicked.connect(lambda: self.print_thermal(58))
+        print_thermal_58_btn.clicked.connect(lambda: self.print_thermal(58, gst_mode='exclusive'))
 
         close_btn = QPushButton("Close")
         close_btn.clicked.connect(self.accept)
         
         btn_layout.addWidget(print_thermal_80_btn)
+        btn_layout.addWidget(print_thermal_80_incl_btn)
         btn_layout.addWidget(print_thermal_58_btn)
         btn_layout.addStretch()
         btn_layout.addWidget(print_btn)
@@ -288,20 +294,26 @@ class ViewInvoiceDialog(QDialog):
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to generate PDF: {str(e)}")
 
-    def print_thermal(self, width_mm):
+    def print_thermal(self, width_mm, gst_mode='exclusive'):
         try:
             from pdf.thermal_generator import generate_thermal_receipt
             from modules.printer_service import handle_print_workflow
             folder = os.path.join(os.getcwd(), "invoices_pdf")
             if not os.path.exists(folder):
                 os.makedirs(folder)
-                
-            inv_clean = self.invoice_data['invoice_number'].replace('/', '_')
-            filename = os.path.join(folder, f"receipt_{inv_clean}_{width_mm}mm.pdf")
-            generate_thermal_receipt(self.invoice_data, paper_width_mm=width_mm, output_path=filename)
-            
+
+            # Inject gst_mode into invoice_data copy
+            data = dict(self.invoice_data)
+            data['gst_mode'] = gst_mode
+
+            mode_tag = 'incl' if gst_mode == 'inclusive' else 'excl'
+            inv_clean = data['invoice_number'].replace('/', '_')
+            filename = os.path.join(folder, f"receipt_{inv_clean}_{width_mm}mm_{mode_tag}.pdf")
+            generate_thermal_receipt(data, paper_width_mm=width_mm, output_path=filename)
+
             doc_type_key = f"thermal_{width_mm}"
-            handle_print_workflow(self, filename, doc_type=doc_type_key, doc_title=f"POS Receipt ({width_mm}mm) #{self.invoice_data['invoice_number']}")
+            handle_print_workflow(self, filename, doc_type=doc_type_key,
+                                  doc_title=f"POS Receipt ({width_mm}mm {gst_mode}) #{data['invoice_number']}")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to generate POS Receipt: {str(e)}")
 

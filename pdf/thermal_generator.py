@@ -197,13 +197,13 @@ def generate_thermal_receipt(invoice_data, paper_width_mm=80, output_path=None):
 
     hdr_t = Table(
         [
-            [Paragraph('sl.no  Item Description', sLb), '', '', ''],
+            [Paragraph('sl.no', sLb), Paragraph('Item Description', sLb), '', ''],
             [Paragraph('', sL), Paragraph('Qty', sCb), Paragraph('Rate', sRb), Paragraph('Amount', sRb)],
         ],
         colWidths=cw,
     )
     hdr_t.setStyle(TableStyle([
-        ('SPAN',          (0, 0), (3, 0)),
+        ('SPAN',          (1, 0), (3, 0)),          # Item Description spans cols 1-3
         ('LEFTPADDING',   (0, 0), (-1, -1), 0),
         ('RIGHTPADDING',  (0, 0), (-1, -1), 0),
         ('TOPPADDING',    (0, 0), (-1, -1), 1),
@@ -215,19 +215,56 @@ def generate_thermal_receipt(invoice_data, paper_width_mm=80, output_path=None):
     elems.append(Spacer(1, 0.5 * mm))
 
     # ══════════════════════════════════════════════════════════════
-    # ITEM ROWS
+    # RESOLVE TOTALS FROM DATABASE (source of truth)
     # ══════════════════════════════════════════════════════════════
-    total_qty    = 0
-    total_amount = 0.0
     INR = '\u20b9'   # ₹
 
+    subtotal    = float(invoice_data.get('subtotal',    0.0) or 0.0)  # base (no GST)
+    tax_amount  = float(invoice_data.get('tax_amount',  0.0) or 0.0)  # GST amount
+    grand_total = float(invoice_data.get('grand_total', 0.0) or 0.0)  # payable
+
+    # Fall-back: derive from items if DB values missing
+    if subtotal == 0.0 and items:
+        subtotal = sum(float(i.get('quantity', 1)) * float(i.get('rate', 0.0)) for i in items)
+    if tax_amount == 0.0 and items:
+        for i in items:
+            qty  = float(i.get('quantity', 1))
+            rate = float(i.get('rate', 0.0))
+            gp   = float(i.get('gst_percent', 0.0))
+            disc = float(i.get('discount_percent', 0.0))
+            base = qty * rate * (1 - disc / 100)
+            tax_amount += base * gp / 100
+    if grand_total == 0.0:
+        grand_total = subtotal + tax_amount
+
+    # GST mode: 'exclusive' (default) or 'inclusive'
+    gst_mode = (invoice_data.get('gst_mode') or 'exclusive').lower()
+    is_inclusive = (gst_mode == 'inclusive')
+
+    # ══════════════════════════════════════════════════════════════
+    # ITEM ROWS
+    # ══════════════════════════════════════════════════════════════
+    total_qty      = 0
+    total_base_amt = 0.0
+
     for idx, item in enumerate(items, start=1):
-        name   = (item.get('name') or item.get('item_name') or 'Item').strip()
-        qty    = item.get('quantity', 1)
-        rate   = float(item.get('rate', 0.0))
-        amount = float(item.get('amount', qty * rate))
-        total_qty    += qty
-        total_amount += amount
+        name        = (item.get('name') or item.get('item_name') or 'Item').strip()
+        qty         = float(item.get('quantity', 1))
+        rate        = float(item.get('rate', 0.0))         # base rate (GST excl)
+        gst_pct     = float(item.get('gst_percent', 0.0))
+        disc_pct    = float(item.get('discount_percent', 0.0))
+        disc_factor = 1 - disc_pct / 100
+        base_rate   = rate * disc_factor                   # after discount, excl GST
+        incl_rate   = base_rate * (1 + gst_pct / 100)     # GST-inclusive rate
+
+        base_amt    = qty * base_rate                      # line total excl GST
+        incl_amt    = qty * incl_rate                      # line total incl GST
+
+        total_qty      += qty
+        total_base_amt += base_amt
+
+        disp_rate = incl_rate if is_inclusive else base_rate
+        disp_amt  = incl_amt  if is_inclusive else base_amt
 
         # Line 1: idx. Full Item Name
         elems.append(Paragraph(f'<b>{idx}. {name}</b>', sL))
@@ -236,8 +273,8 @@ def generate_thermal_receipt(invoice_data, paper_width_mm=80, output_path=None):
         val_row = [
             Paragraph('', sL),
             Paragraph(str(int(qty)) if qty == int(qty) else str(qty), sC),
-            Paragraph(f'{INR}{rate:.2f}',   sR),
-            Paragraph(f'{INR}{amount:.2f}', sR),
+            Paragraph(f'{INR}{disp_rate:.2f}', sR),
+            Paragraph(f'{INR}{disp_amt:.2f}',  sR),
         ]
         val_t = Table([val_row], colWidths=cw)
         val_t.setStyle(TableStyle([
@@ -248,32 +285,30 @@ def generate_thermal_receipt(invoice_data, paper_width_mm=80, output_path=None):
         ]))
         elems.append(val_t)
 
-        # Thin separator between items
         elems.append(HRFlowable(width=pw, thickness=0.3,
                                 color=colors.HexColor('#AAAAAA'),
                                 spaceAfter=1 * mm, spaceBefore=1 * mm))
 
     # ══════════════════════════════════════════════════════════════
-    # TOTALS
+    # TOTALS — consistent with display mode
     # ══════════════════════════════════════════════════════════════
-    subtotal    = float(invoice_data.get('subtotal', 0.0) or 0.0)
-    tax_amount  = float(invoice_data.get('tax_amount', 0.0) or 0.0)
-    grand_total = float(invoice_data.get('grand_total', 0.0) or 0.0)
+    total_qty_disp = int(total_qty) if total_qty == int(total_qty) else total_qty
 
-    if subtotal == 0.0 and items:
-        subtotal = sum(float(i.get('amount', i.get('quantity', 1) * i.get('rate', 0.0)))
-                       for i in items)
-    if grand_total == 0.0:
-        grand_total = subtotal + tax_amount - float(invoice_data.get('discount_amount', 0.0))
+    if is_inclusive:
+        total_disp = grand_total
+        gst_label  = 'GST Incl. @ rate :'
+    else:
+        total_disp = subtotal
+        gst_label  = 'GST Applicable :'
 
     # Total row
-    tot_row = [
-        Paragraph('<b>Total</b>', sLb),
-        Paragraph(f'<b>{int(total_qty) if total_qty == int(total_qty) else total_qty}</b>', sCb),
-        Paragraph('', sR),
-        Paragraph(f'<b>{INR}{subtotal:.2f}</b>', sRb),
-    ]
-    tot_t = Table([tot_row], colWidths=cw)
+    tot_t = Table(
+        [[Paragraph('<b>Total</b>', sLb),
+          Paragraph(f'<b>{total_qty_disp}</b>', sCb),
+          Paragraph('', sR),
+          Paragraph(f'<b>{INR}{total_disp:.2f}</b>', sRb)]],
+        colWidths=cw,
+    )
     tot_t.setStyle(TableStyle([
         ('LEFTPADDING',   (0,0),(-1,-1), 0),
         ('RIGHTPADDING',  (0,0),(-1,-1), 0),
@@ -283,12 +318,11 @@ def generate_thermal_receipt(invoice_data, paper_width_mm=80, output_path=None):
     ]))
     elems.append(tot_t)
 
-    # GST Applicable
-    gst_row = [
-        Paragraph('GST Applicable :', sLb),
-        Paragraph(f'{INR}{tax_amount:.2f}', sRb),
-    ]
-    gst_t = Table([gst_row], colWidths=[pw * 0.60, pw * 0.40])
+    # GST line
+    gst_t = Table(
+        [[Paragraph(gst_label, sLb), Paragraph(f'{INR}{tax_amount:.2f}', sRb)]],
+        colWidths=[pw * 0.60, pw * 0.40],
+    )
     gst_t.setStyle(TableStyle([
         ('LEFTPADDING',   (0,0),(-1,-1), 0),
         ('RIGHTPADDING',  (0,0),(-1,-1), 0),
@@ -297,12 +331,27 @@ def generate_thermal_receipt(invoice_data, paper_width_mm=80, output_path=None):
     ]))
     elems.append(gst_t)
 
-    # Payable — bold, prominent double-bordered
-    pay_row = [
-        Paragraph('<b>Payable :</b>', sRb),
-        Paragraph(f'<b>{INR}{grand_total:.2f}</b>', sRb),
-    ]
-    pay_t = Table([pay_row], colWidths=[pw * 0.50, pw * 0.50])
+    # Discount line (exclusive mode only, if any)
+    if not is_inclusive:
+        disc_amt = float(invoice_data.get('discount_amount', 0.0) or 0.0)
+        if disc_amt > 0:
+            d_t = Table(
+                [[Paragraph('Discount :', sLb), Paragraph(f'- {INR}{disc_amt:.2f}', sRb)]],
+                colWidths=[pw * 0.60, pw * 0.40],
+            )
+            d_t.setStyle(TableStyle([
+                ('LEFTPADDING',   (0,0),(-1,-1), 0),
+                ('RIGHTPADDING',  (0,0),(-1,-1), 0),
+                ('TOPPADDING',    (0,0),(-1,-1), 2),
+                ('BOTTOMPADDING', (0,0),(-1,-1), 2),
+            ]))
+            elems.append(d_t)
+
+    # Payable — bold, prominent
+    pay_t = Table(
+        [[Paragraph('<b>Payable :</b>', sRb), Paragraph(f'<b>{INR}{grand_total:.2f}</b>', sRb)]],
+        colWidths=[pw * 0.50, pw * 0.50],
+    )
     pay_t.setStyle(TableStyle([
         ('LEFTPADDING',   (0,0),(-1,-1), 0),
         ('RIGHTPADDING',  (0,0),(-1,-1), 0),
