@@ -1,6 +1,6 @@
 from reportlab.lib import colors
 from reportlab.platypus import (
-    Table, TableStyle, SimpleDocTemplate, Paragraph, Spacer, HRFlowable
+    Table, TableStyle, SimpleDocTemplate, Paragraph, Spacer, HRFlowable, Image
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
@@ -87,7 +87,7 @@ def generate_thermal_receipt(invoice_data, paper_width_mm=80, output_path=None):
     pw        = width_pt - 2 * margin_pt   # printable width
 
     items      = invoice_data.get('items', [])
-    base_h     = 130 if paper_width_mm == 80 else 150
+    base_h     = 155 if paper_width_mm == 80 else 175   # extra 25mm for optional logo
     page_h_pt  = (base_h + len(items) * 16) * mm
 
     doc = SimpleDocTemplate(
@@ -131,6 +131,21 @@ def generate_thermal_receipt(invoice_data, paper_width_mm=80, output_path=None):
     # ══════════════════════════════════════════════════════════════
     # HEADER
     # ══════════════════════════════════════════════════════════════
+    # ── Logo (optional) ─────────────────────────────────────────────
+    logo_path = invoice_data.get('logo_path', '')
+    if logo_path and os.path.exists(logo_path):
+        try:
+            logo_max_h = 20 * mm          # max 20 mm tall on thermal
+            logo_max_w = pw               # full printable width
+            img = Image(logo_path, width=logo_max_w, height=logo_max_h,
+                        kind='proportional')
+            img.hAlign = 'CENTER'
+            elems.append(img)
+            elems.append(Spacer(1, 1.5 * mm))
+        except Exception as e:
+            print(f'[thermal] Logo load failed: {e}')
+
+    # ── Company name ─────────────────────────────────────────────────
     company_name = (invoice_data.get('company_name') or 'My Shop').upper()
     elems.append(Paragraph(company_name, sT))
     elems.append(Spacer(1, 1.5 * mm))
@@ -171,28 +186,30 @@ def generate_thermal_receipt(invoice_data, paper_width_mm=80, output_path=None):
     elems.append(hr())
 
     # ══════════════════════════════════════════════════════════════
-    # COLUMN HEADERS  — all 4 on ONE row
-    # sl.no | Qty | Rate | Amount
+    # COLUMN HEADERS  — 2 rows
+    # Row 1: sl.no  Item
+    # Row 2:        Qty     Rate    Amount
     # ══════════════════════════════════════════════════════════════
-    # Column widths
-    cw = [pw * 0.16,   # sl.no
-          pw * 0.18,   # Qty
-          pw * 0.31,   # Rate
-          pw * 0.35]   # Amount
+    cw = [pw * 0.16,
+          pw * 0.18,
+          pw * 0.31,
+          pw * 0.35]
 
-    hdr_row = [
-        Paragraph('sl.no',  sLb),
-        Paragraph('Qty',    sCb),
-        Paragraph('Rate',   sRb),
-        Paragraph('Amount', sRb),
-    ]
-    hdr_t = Table([hdr_row], colWidths=cw)
+    hdr_t = Table(
+        [
+            [Paragraph('sl.no  Item Description', sLb), '', '', ''],
+            [Paragraph('', sL), Paragraph('Qty', sCb), Paragraph('Rate', sRb), Paragraph('Amount', sRb)],
+        ],
+        colWidths=cw,
+    )
     hdr_t.setStyle(TableStyle([
-        ('LEFTPADDING',   (0,0),(-1,-1), 0),
-        ('RIGHTPADDING',  (0,0),(-1,-1), 0),
-        ('TOPPADDING',    (0,0),(-1,-1), 1),
-        ('BOTTOMPADDING', (0,0),(-1,-1), 2),
-        ('LINEBELOW',     (0,0),(-1,-1), 0.5, colors.black),
+        ('SPAN',          (0, 0), (3, 0)),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING',  (0, 0), (-1, -1), 0),
+        ('TOPPADDING',    (0, 0), (-1, -1), 1),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ('LINEBELOW',     (0, 1), (-1, 1),  0.5, colors.black),
+        ('VALIGN',        (0, 0), (-1, -1), 'TOP'),
     ]))
     elems.append(hdr_t)
     elems.append(Spacer(1, 0.5 * mm))
