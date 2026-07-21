@@ -2,7 +2,7 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, 
     QLineEdit, QFormLayout, QMessageBox, QFileDialog, QTabWidget,
     QTableWidget, QTableWidgetItem, QHeaderView, QComboBox, QDialog,
-    QDialogButtonBox, QGroupBox, QScrollArea, QFrame
+    QDialogButtonBox, QGroupBox, QScrollArea, QFrame, QListView
 )
 from PySide6.QtCore import Qt
 from database.db import execute_read_query, execute_write_query
@@ -15,15 +15,38 @@ import os
 import json
 
 from PySide6.QtGui import QPixmap
+from modules.printer_service import (
+    get_available_printers, get_default_printer_name,
+    get_printer_settings, save_printer_settings, handle_print_workflow
+)
 
 class SettingsPage(QWidget):
     def __init__(self):
         super().__init__()
         layout = QVBoxLayout()
         
-        title = QLabel("Settings")
+        # Header with Info Button
+        header = QHBoxLayout()
+        title = QLabel("Settings & Custom Fields")
         title.setStyleSheet("font-size: 24px; font-weight: bold; color: #1E293B;")
-        layout.addWidget(title)
+        
+        info_btn = QPushButton(" Info & Guide / जानकारी")
+        info_btn.setIcon(get_icon("info", "#2563EB", 16))
+        info_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #EFF6FF; color: #2563EB; border: 1px solid #BFDBFE;
+                border-radius: 6px; padding: 6px 12px; font-weight: bold; font-size: 13px;
+            }
+            QPushButton:hover {
+                background-color: #DBEAFE; color: #1D4ED8;
+            }
+        """)
+        info_btn.clicked.connect(self.show_help_dialog)
+        
+        header.addWidget(title)
+        header.addStretch()
+        header.addWidget(info_btn)
+        layout.addLayout(header)
         
         self.tabs = QTabWidget()
         
@@ -46,6 +69,11 @@ class SettingsPage(QWidget):
         self.database_tab = QWidget()
         self.init_database_tab()
         self.tabs.addTab(self.database_tab, "Database")
+        
+        # --- Tab 5: Printer Setup ---
+        self.printer_tab = QWidget()
+        self.init_printer_tab()
+        self.tabs.addTab(self.printer_tab, "Printer Setup")
         
         layout.addWidget(self.tabs)
         self.setLayout(layout)
@@ -180,6 +208,23 @@ class SettingsPage(QWidget):
         content = QWidget()
         layout = QVBoxLayout(content)
         layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
+        
+        # Info Box explaining Custom Fields
+        info_card = QFrame()
+        info_card.setStyleSheet("background-color: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px;")
+        card_layout = QHBoxLayout(info_card)
+        card_layout.setContentsMargins(12, 10, 12, 10)
+        card_icon = QLabel()
+        card_icon.setPixmap(get_icon("info", "#2563EB", 24).pixmap(24, 24))
+        card_text = QLabel("<b>How Custom Fields Work / कस्टम फ़ील्ड्स कैसे काम करते हैं:</b><br>"
+                           "Add custom input fields (e.g. PO Reference, Project Name, Delivery Note) for Invoices, Bills, or Payments. "
+                           "Once saved, these fields dynamically appear when creating transactions and print on PDFs!<br>"
+                           "<i>(इनवॉइस/बिल/पेमेंट में अतिरिक्त फ़ील्ड्स जोड़ें। सेव करने के बाद ये फ़ॉर्म और PDF पर स्वतः दिखाई देंगे।)</i>")
+        card_text.setStyleSheet("font-size: 12px; color: #1E40AF;")
+        card_layout.addWidget(card_icon)
+        card_layout.addWidget(card_text)
+        layout.addWidget(info_card)
         
         # Module Selector
         top_layout = QHBoxLayout()
@@ -449,6 +494,21 @@ class SettingsPage(QWidget):
         # Custom Fields
         self.load_custom_fields()
 
+        # Printer Settings
+        printer_st = get_printer_settings()
+        doc_p = printer_st.get('default_doc_printer', '(System Default)')
+        therm_p = printer_st.get('default_thermal_printer', '(System Default)')
+        act = printer_st.get('print_action_default', 'dialog')
+        
+        idx_doc = self.default_doc_printer.findData(doc_p)
+        if idx_doc >= 0: self.default_doc_printer.setCurrentIndex(idx_doc)
+        
+        idx_therm = self.default_thermal_printer.findData(therm_p)
+        if idx_therm >= 0: self.default_thermal_printer.setCurrentIndex(idx_therm)
+        
+        idx_act = self.print_action_combo.findData(act)
+        if idx_act >= 0: self.print_action_combo.setCurrentIndex(idx_act)
+
     def upload_logo(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Select Logo", "", "Images (*.png *.jpg *.jpeg)")
         if file_path:
@@ -629,3 +689,181 @@ class SettingsPage(QWidget):
                     QMessageBox.warning(self, "Backup Warning", "Local database file ledgerpro.db not found.")
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
+
+    def init_printer_tab(self):
+        tab_layout = QVBoxLayout(self.printer_tab)
+        tab_layout.setContentsMargins(0, 0, 0, 0)
+        
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+        
+        # Printer Config Group
+        group = QGroupBox("Inbuilt Printer & Print Service Preferences")
+        group.setStyleSheet("font-weight: bold; color: #1E293B;")
+        form_layout = QFormLayout()
+        form_layout.setSpacing(12)
+        
+        printers = get_available_printers()
+        default_sys_printer = get_default_printer_name()
+
+        combo_qss = """
+            QComboBox {
+                background-color: #FFFFFF;
+                border: 1px solid #CBD5E1;
+                border-radius: 6px;
+                padding: 6px 12px;
+                color: #0F172A;
+                font-weight: 500;
+                font-size: 13px;
+            }
+            QComboBox:hover {
+                border-color: #94A3B8;
+            }
+            QComboBox QAbstractItemView {
+                background-color: #FFFFFF;
+                background: #FFFFFF;
+                border: 1px solid #CBD5E1;
+                border-radius: 6px;
+                color: #0F172A;
+                selection-background-color: #2563EB;
+                selection-color: #FFFFFF;
+                padding: 4px;
+                outline: 0px;
+            }
+            QComboBox QAbstractItemView::item {
+                min-height: 28px;
+                padding: 4px 8px;
+            }
+        """
+
+        # Document Printer (A4)
+        self.default_doc_printer = QComboBox()
+        self.default_doc_printer.setView(QListView())
+        self.default_doc_printer.setMaxVisibleItems(8)
+        self.default_doc_printer.setStyleSheet(combo_qss)
+        self.default_doc_printer.addItem("(System Default)", "(System Default)")
+        for p in printers:
+            label = f"{p} (Default)" if p == default_sys_printer else p
+            self.default_doc_printer.addItem(label, p)
+            
+        # Thermal POS Printer (58mm/80mm)
+        self.default_thermal_printer = QComboBox()
+        self.default_thermal_printer.setView(QListView())
+        self.default_thermal_printer.setMaxVisibleItems(8)
+        self.default_thermal_printer.setStyleSheet(combo_qss)
+        self.default_thermal_printer.addItem("(System Default)", "(System Default)")
+        for p in printers:
+            label = f"{p} (Default)" if p == default_sys_printer else p
+            self.default_thermal_printer.addItem(label, p)
+
+        # Print Action Default
+        self.print_action_combo = QComboBox()
+        self.print_action_combo.setView(QListView())
+        self.print_action_combo.setStyleSheet(combo_qss)
+        self.print_action_combo.addItem("Always Ask (Printer Selection Dialog)", "dialog")
+        self.print_action_combo.addItem("Direct Print to Default Printer", "direct")
+        self.print_action_combo.addItem("Open System Print Dialog", "system_dialog")
+        self.print_action_combo.addItem("View / Open PDF File", "preview")
+
+        form_layout.addRow("Default Document Printer (A4):", self.default_doc_printer)
+        form_layout.addRow("Default Thermal POS Printer:", self.default_thermal_printer)
+        form_layout.addRow("Default Print Behavior:", self.print_action_combo)
+        
+        group.setLayout(form_layout)
+        layout.addWidget(group)
+        
+        # Buttons Row
+        save_btn = QPushButton(" Save Printer Settings")
+        save_btn.setIcon(get_icon("save", "#FFFFFF", 16))
+        save_btn.setFixedWidth(200)
+        save_btn.setStyleSheet("background-color: #2563EB; color: white; padding: 10px 18px; border-radius: 6px; font-weight: bold;")
+        save_btn.clicked.connect(self.save_printer_setup)
+        
+        layout.addWidget(save_btn)
+        
+        # Test Print Group
+        test_group = QGroupBox("Test Printer Connection")
+        test_group.setStyleSheet("font-weight: bold; color: #1E293B;")
+        test_layout = QHBoxLayout()
+        
+        self.test_type_combo = QComboBox()
+        self.test_type_combo.setView(QListView())
+        self.test_type_combo.setStyleSheet(combo_qss)
+        self.test_type_combo.addItem("A4 Invoice Test Page", "invoice")
+        self.test_type_combo.addItem("80mm POS Receipt Test Page", "thermal_80")
+        self.test_type_combo.addItem("58mm POS Receipt Test Page", "thermal_58")
+        
+        test_btn = QPushButton(" Send Test Print")
+        test_btn.setIcon(get_icon("print", "#1E293B", 16))
+        test_btn.setStyleSheet("background-color: #F1F5F9; border: 1px solid #CBD5E1; padding: 8px 14px; border-radius: 6px; font-weight: bold;")
+        test_btn.clicked.connect(self.run_test_print)
+        
+        test_layout.addWidget(QLabel("Test Page Type:"))
+        test_layout.addWidget(self.test_type_combo)
+        test_layout.addWidget(test_btn)
+        test_layout.addStretch()
+        
+        test_group.setLayout(test_layout)
+        layout.addWidget(test_group)
+        
+        layout.addStretch()
+        scroll.setWidget(content)
+        tab_layout.addWidget(scroll)
+
+    def save_printer_setup(self):
+        doc_p = self.default_doc_printer.currentData()
+        therm_p = self.default_thermal_printer.currentData()
+        act = self.print_action_combo.currentData()
+        
+        success, msg = save_printer_settings(doc_p, therm_p, act)
+        if success:
+            QMessageBox.information(self, "Success", msg)
+        else:
+            QMessageBox.critical(self, "Error", msg)
+
+    def run_test_print(self):
+        test_type = self.test_type_combo.currentData()
+        folder = os.path.join(os.getcwd(), "invoices_pdf")
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+            
+        test_filename = os.path.join(folder, f"printer_test_page_{test_type}.pdf")
+        
+        test_data = {
+            'invoice_number': 'TEST-PRINT-001',
+            'date': datetime.datetime.now().strftime("%Y-%m-%d"),
+            'customer_name': 'Test Print Customer',
+            'customer_phone': '0000000000',
+            'customer_address': 'Test Printer Location',
+            'company_name': self.settings_data.get('company_name', 'TSL LedgerPro Test'),
+            'company_address': self.settings_data.get('company_address', ''),
+            'items': [
+                {'item_name': 'Test Item 1 - Printer Calibration Page', 'quantity': 1, 'rate': 100, 'amount': 100, 'gst_rate': 18}
+            ],
+            'subtotal': 100,
+            'tax_amount': 18,
+            'total_amount': 118,
+            'payment_status': 'PAID'
+        }
+        
+        if test_type == "invoice":
+            from pdf.generator import generate_invoice_pdf
+            generate_invoice_pdf(test_data, test_filename)
+        else:
+            from pdf.thermal_generator import generate_thermal_receipt
+            w_mm = 80 if test_type == "thermal_80" else 58
+            generate_thermal_receipt(test_data, paper_width_mm=w_mm, output_path=test_filename)
+            
+        handle_print_workflow(self, test_filename, doc_type=test_type, doc_title="Test Print Page")
+
+    def show_help_dialog(self):
+        from ui.help_dialog import HelpInfoDialog
+        dialog = HelpInfoDialog("settings", parent=self)
+        dialog.exec()
+

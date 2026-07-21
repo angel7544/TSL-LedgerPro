@@ -567,14 +567,16 @@ class ViewBillDialog(QDialog):
         
     def print_pdf(self):
         try:
+            from modules.printer_service import handle_print_workflow
             folder = os.path.join(os.getcwd(), "bills_pdf")
             if not os.path.exists(folder):
                 os.makedirs(folder)
                 
-            filename = os.path.join(folder, f"{self.bill_data['bill_number']}.pdf")
+            bill_num = self.bill_data['bill_number']
+            filename = os.path.join(folder, f"{bill_num.replace('/', '_')}.pdf")
             generate_bill_pdf(self.bill_data, filename)
             
-            QDesktopServices.openUrl(QUrl.fromLocalFile(filename))
+            handle_print_workflow(self, filename, doc_type="bill", doc_title=f"Purchase Bill #{bill_num}")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to generate PDF: {str(e)}")
 
@@ -615,17 +617,34 @@ class CreateBillDialog(QDialog):
         header_form.addRow(row1)
         
         # Dates
+        # Dates & Due Date Presets (10, 15, 45 days, etc.)
         date_layout = QHBoxLayout()
         self.date_edit = QDateEdit()
         self.date_edit.setDate(QDate.currentDate())
         self.date_edit.setCalendarPopup(True)
+        self.date_edit.dateChanged.connect(self.on_date_changed)
+        
+        self.due_preset_combo = QComboBox()
+        self.due_preset_combo.addItem("Due on Receipt (0 Days)", 0)
+        self.due_preset_combo.addItem("Net 7 Days", 7)
+        self.due_preset_combo.addItem("Net 10 Days", 10)
+        self.due_preset_combo.addItem("Net 15 Days", 15)
+        self.due_preset_combo.addItem("Net 30 Days", 30)
+        self.due_preset_combo.addItem("Net 45 Days", 45)
+        self.due_preset_combo.addItem("Net 60 Days", 60)
+        self.due_preset_combo.addItem("Custom Date", -1)
+        self.due_preset_combo.setCurrentIndex(4) # Default Net 30
+        self.due_preset_combo.currentIndexChanged.connect(self.on_due_preset_changed)
         
         self.due_date = QDateEdit()
         self.due_date.setDate(QDate.currentDate().addDays(30))
         self.due_date.setCalendarPopup(True)
+        self.due_date.dateChanged.connect(self.on_due_date_manual_changed)
         
         date_layout.addWidget(QLabel("Bill Date:"))
         date_layout.addWidget(self.date_edit)
+        date_layout.addWidget(QLabel("Payment Terms:"))
+        date_layout.addWidget(self.due_preset_combo)
         date_layout.addWidget(QLabel("Due Date:"))
         date_layout.addWidget(self.due_date)
         header_form.addRow(date_layout)
@@ -753,10 +772,36 @@ class CreateBillDialog(QDialog):
             "SELECT id, name, sku, purchase_price, gst_rate, is_purchasable FROM items"
         )
         self.calculated_subtotal = 0.0
+        self.custom_fields_widgets = {}
+        self.load_custom_fields_ui(layout)
 
-        if self.bill_data:
-            self.populate_data()
-            
+    def on_due_preset_changed(self):
+        days = self.due_preset_combo.currentData()
+        if days is not None and days >= 0:
+            bill_date = self.date_edit.date()
+            calc_due = bill_date.addDays(days)
+            self.due_date.blockSignals(True)
+            self.due_date.setDate(calc_due)
+            self.due_date.blockSignals(False)
+
+    def on_date_changed(self):
+        self.on_due_preset_changed()
+
+    def on_due_date_manual_changed(self):
+        bill_date = self.date_edit.date()
+        due_d = self.due_date.date()
+        diff_days = bill_date.daysTo(due_d)
+        
+        idx = self.due_preset_combo.findData(diff_days)
+        self.due_preset_combo.blockSignals(True)
+        if idx >= 0:
+            self.due_preset_combo.setCurrentIndex(idx)
+        else:
+            cust_idx = self.due_preset_combo.findData(-1)
+            if cust_idx >= 0:
+                self.due_preset_combo.setCurrentIndex(cust_idx)
+        self.due_preset_combo.blockSignals(False)
+
     def populate_data(self):
         data = self.bill_data
         

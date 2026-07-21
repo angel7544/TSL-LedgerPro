@@ -6,7 +6,7 @@ def create_admin_user():
     # Ensure DB is initialized
     init_db()
     
-    email = "admin@br31tech.live"
+    email = "admin@br31tech.in"
     password = "admin123"
     name = "Administrator"
     

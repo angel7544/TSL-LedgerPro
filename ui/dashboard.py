@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QGridLayout, QFrame, QHBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QSizePolicy
+    QWidget, QVBoxLayout, QLabel, QGridLayout, QFrame, QHBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QSizePolicy, QPushButton
 )
 from PySide6.QtCore import Qt
 from modules.reports_logic import (
@@ -9,6 +9,8 @@ from database.db import execute_read_query, is_mysql
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import datetime
+from ui.icons import get_icon
+from ui.help_dialog import HelpInfoDialog
 
 class DashboardPage(QWidget):
     def __init__(self):
@@ -29,10 +31,28 @@ class DashboardPage(QWidget):
         self.content_layout.setSpacing(20)
         self.content_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         
-        # Header Title
+        # Header Title with Info Button
+        header_layout = QHBoxLayout()
         title_lbl = QLabel("Dashboard Overview")
         title_lbl.setStyleSheet("font-size: 24px; font-weight: bold; color: #1E293B;")
-        self.content_layout.addWidget(title_lbl)
+        
+        info_btn = QPushButton(" Info & Guide / जानकारी")
+        info_btn.setIcon(get_icon("info", "#2563EB", 16))
+        info_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #EFF6FF; color: #2563EB; border: 1px solid #BFDBFE;
+                border-radius: 6px; padding: 6px 12px; font-weight: bold; font-size: 13px;
+            }
+            QPushButton:hover {
+                background-color: #DBEAFE; color: #1D4ED8;
+            }
+        """)
+        info_btn.clicked.connect(self.show_help_dialog)
+        
+        header_layout.addWidget(title_lbl)
+        header_layout.addStretch()
+        header_layout.addWidget(info_btn)
+        self.content_layout.addLayout(header_layout)
         
         # Receivables & Payables Section
         rec_pay_layout = QHBoxLayout()
@@ -589,3 +609,7 @@ class DashboardPage(QWidget):
     def update_card_value(self, card, value):
         # 2nd item in layout is value label
         card.layout().itemAt(1).widget().setText(value)
+
+    def show_help_dialog(self):
+        dialog = HelpInfoDialog("dashboard", parent=self)
+        dialog.exec()

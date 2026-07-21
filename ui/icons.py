@@ -282,6 +282,15 @@ class IconEngine:
             shackle.lineTo(s - p - w * 0.25, p + h * 0.35)
             painter.drawPath(shackle)
 
+        elif t in ["info", "help", "information", "about", "guide"]:
+            # Circle with 'i'
+            painter.drawEllipse(QRectF(p, p, w, h))
+            dot_r = s * 0.045
+            painter.setBrush(QBrush(color))
+            painter.drawEllipse(QPointF(s / 2, p + h * 0.28), dot_r, dot_r)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawLine(QPointF(s / 2, p + h * 0.44), QPointF(s / 2, p + h * 0.76))
+
         else:
             # Generic bullet / dot fallback
             painter.setBrush(QBrush(color))

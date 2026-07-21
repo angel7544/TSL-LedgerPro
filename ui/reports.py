@@ -13,6 +13,8 @@ from modules.reports_logic import (
 from database.db import execute_read_query
 from pdf.generator import generate_price_list_pdf, generate_generic_report_pdf
 import os
+from ui.icons import get_icon
+from ui.help_dialog import HelpInfoDialog
 
 class ReportsPage(QWidget):
     def __init__(self):
@@ -22,8 +24,24 @@ class ReportsPage(QWidget):
         # Header
         header = QHBoxLayout()
         title = QLabel("Reports")
-        title.setStyleSheet("font-size: 24px; font-weight: bold;")
+        title.setStyleSheet("font-size: 24px; font-weight: bold; color: #1E293B;")
+        
+        info_btn = QPushButton(" Info & Guide / जानकारी")
+        info_btn.setIcon(get_icon("info", "#2563EB", 16))
+        info_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #EFF6FF; color: #2563EB; border: 1px solid #BFDBFE;
+                border-radius: 6px; padding: 6px 12px; font-weight: bold; font-size: 13px;
+            }
+            QPushButton:hover {
+                background-color: #DBEAFE; color: #1D4ED8;
+            }
+        """)
+        info_btn.clicked.connect(self.show_help_dialog)
+        
         header.addWidget(title)
+        header.addStretch()
+        header.addWidget(info_btn)
         layout.addLayout(header)
         
         # Date Range
@@ -372,7 +390,8 @@ class ReportsPage(QWidget):
             # 3. Generate PDF
             generate_generic_report_pdf(report_data, headers, rows, filename, title)
             
-            QDesktopServices.openUrl(QUrl.fromLocalFile(filename))
+            from modules.printer_service import handle_print_workflow
+            handle_print_workflow(self, filename, doc_type="report", doc_title=title)
             
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to generate PDF: {str(e)}")
@@ -386,4 +405,8 @@ class ReportsPage(QWidget):
                 row_data.append(item.text() if item else "")
             rows.append(row_data)
         return rows
+
+    def show_help_dialog(self):
+        dialog = HelpInfoDialog("reports", parent=self)
+        dialog.exec()
 

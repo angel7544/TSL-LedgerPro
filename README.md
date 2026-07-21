@@ -329,9 +329,9 @@ Double-click **`LedgerProDesktop.exe`**.
 
 | Role | Email Address | Password | Access Rights |
 |---|---|---|---|
-| **Owner / Admin** | `admin@br31tech.live` | `admin123` | Full Access (User Mgmt, Settings, Audit Logs, Reports) |
-| **Store Manager** | `manager@br31tech.live` | `admin123` | Master Data, Purchase Bills, FIFO Stock Adjustments |
-| **Billing Staff** | `staff@br31tech.live` | `admin123` | Quick Counter Billing & Thermal POS Print |
+| **Owner / Admin** | `admin@br31tech.in` | `admin123` | Full Access (User Mgmt, Settings, Audit Logs, Reports) |
+| **Store Manager** | `manager@br31tech.in` | `admin123` | Master Data, Purchase Bills, FIFO Stock Adjustments |
+| **Billing Staff** | `staff@br31tech.in` | `admin123` | Quick Counter Billing & Thermal POS Print |
 
 *(Note: The primary Owner can create additional staff and manager user accounts from **User Management**).*
 
@@ -341,7 +341,7 @@ Double-click **`LedgerProDesktop.exe`**.
 
 - **Developer**: Mehul (Angel) Singh (BR31Technologies)
 - **Client**: The Space Labs
-- **Contact**: support@br31tech.live
+- **Contact**: support@br31tech.in
 - **Version**: 3.5.0 Enterprise (MySQL Edition)
 
 *© 2026 LedgerPro Desktop. All rights reserved.*

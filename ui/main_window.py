@@ -45,15 +45,15 @@ class AboutWidget(QWidget):
         version_lbl.setStyleSheet("font-size: 14px; color: #64748B; margin-bottom: 10px;")
         left_layout.addWidget(version_lbl)
         
-        # Tabs for Content (About, FAQ)
+        # Tabs for Content (About English, About Hindi, FAQ)
         tabs = QTabWidget()
         tabs.setStyleSheet("""
             QTabWidget::pane { border: none; }
-            QTabBar::tab { background: transparent; padding: 8px 16px; font-weight: 600; color: #64748B; }
-            QTabBar::tab:selected { color: #2563EB; border-bottom: 2px solid #2563EB; }
+            QTabBar::tab { background: #F1F5F9; padding: 8px 16px; font-weight: 600; color: #64748B; border-radius: 4px; margin-right: 4px; }
+            QTabBar::tab:selected { background: #2563EB; color: white; }
         """)
         
-        # --- Tab 1: About ---
+        # --- Tab 1: About (English) ---
         about_tab = QWidget()
         about_layout = QVBoxLayout(about_tab)
         about_layout.setContentsMargins(0, 10, 0, 0)
@@ -73,12 +73,12 @@ class AboutWidget(QWidget):
             
             "<h3>What's New in Version 3.5.0:</h3>"
             "<ul>"
-            "<li><b>Multi-Role Access Control (RBAC):</b> Support for <b>Owner</b>, <b>Manager</b>, and <b>Staff</b> roles with distinct module permissions.</li>"
-            "<li><b>Dedicated User Management Screen:</b> Admin interface for creating users, updating roles, resetting passwords, and deactivating accounts.</li>"
-            "<li><b>Admin DB Setup Security:</b> Requires Administrator credentials to modify Database Configuration on the login screen.</li>"
-            "<li><b>Thermal POS Receipt Printing:</b> Support for <b>80mm (3-inch)</b> and <b>58mm (2-inch)</b> POS receipt generation for retail counters.</li>"
-            "<li><b>Audit Logging Engine:</b> Automatic tracking of system activities (invoices, payments, bills, stock edits) per user.</li>"
-            "<li><b>Enhanced MySQL Support:</b> Cross-database compatibility fixes and MySQL database backup exports.</li>"
+            "<li><b>Built-in Printer Service & Selection Dialog:</b> Direct thermal POS receipt & A4 PDF printing with printer selection dialogs.</li>"
+            "<li><b>Dynamic Custom Fields Support:</b> Configure custom fields in Settings for Invoices, Bills, and Payments.</li>"
+            "<li><b>Due Date Terms Presets:</b> Select Net 7, 10, 15, 30, 45, 60 days or custom due dates automatically.</li>"
+            "<li><b>Multi-Role Access Control (RBAC):</b> Support for <b>Owner</b>, <b>Manager</b>, and <b>Staff</b> roles.</li>"
+            "<li><b>Dedicated User Management Screen:</b> Admin interface for managing users, updating roles, and resetting passwords.</li>"
+            "<li><b>Audit Logging Engine:</b> Automatic tracking of system activities per user.</li>"
             "</ul>"
 
             "<h3>Core Features:</h3>"
@@ -101,9 +101,55 @@ class AboutWidget(QWidget):
         
         content_scroll.setWidget(content_text)
         about_layout.addWidget(content_scroll)
-        tabs.addTab(about_tab, "About")
+        tabs.addTab(about_tab, "🇬🇧 About (English)")
+
+        # --- Tab 2: About (Hindi / हिंदी) ---
+        about_hi_tab = QWidget()
+        about_hi_layout = QVBoxLayout(about_hi_tab)
+        about_hi_layout.setContentsMargins(0, 10, 0, 0)
         
-        # --- Tab 2: FAQ & Help ---
+        content_hi_scroll = QScrollArea()
+        content_hi_scroll.setWidgetResizable(True)
+        content_hi_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        
+        content_hi_text = QTextEdit()
+        content_hi_text.setReadOnly(True)
+        content_hi_text.setFrameShape(QFrame.Shape.NoFrame)
+        content_hi_text.setStyleSheet("background-color: transparent; font-size: 14px; line-height: 1.6;")
+        content_hi_text.setHtml(
+            "<h3>विवरण (सॉफ्टवेयर वर्ज़न 3.5.0):</h3>"
+            "<p><b>TSL SwiftBill ERP v3.5.0</b> छोटे और मध्यम व्यापारों के लिए एक संपूर्ण, पेशेवर अकाउंटिंग, SME बिलिंग और इन्वेंट्री मैनेजमेंट सॉफ्टवेयर है। "
+            "यह <b>Python</b>, <b>PySide6</b>, <b>SQLite3</b> और <b>MySQL</b> से निर्मित है, जो उच्च प्रदर्शन, बहु-उपयोगकर्ता पहुंच (Multi-User Roles), थर्मल रसीद प्रिंटिंग और ऑफलाइन-फर्स्ट विश्वसनीयता प्रदान करता है।</p>"
+
+            "<h3>वर्ज़न 3.5.0 की नई विशेषताएं:</h3>"
+            "<ul>"
+            "<li><b>इनबिल्ट प्रिंटर सर्विस एवं चयन (Printer Selection):</b> थर्मल POS (80mm/58mm) और A4 PDF के लिए डायरेक्ट प्रिंटर चयन डायलॉग।</li>"
+            "<li><b>डायनामिक कस्टम फ़ील्ड्स (Custom Fields):</b> इनवॉइस, बिल और पेमेंट में अपनी पसंद के फ़ील्ड्स (PO नंबर, प्रोजेक्ट नाम आदि) जोड़ें।</li>"
+            "<li><b>भुगतान समय सीमा (Due Date Presets):</b> इनवॉइस/बिल बनाते समय Net 7, 10, 15, 30, 45, 60 दिन या कस्टम तिथि चुनें।</li>"
+            "<li><b>मल्टी-रोल एक्सेस कंट्रोल (RBAC):</b> Owner, Manager और Staff भूमिकाओं के लिए अलग-अलग अधिकार।</li>"
+            "<li><b>यूजर मैनेजमेंट स्क्रीन:</b> नए यूजर्स बनाने, पासवर्ड बदलने और रोल अपडेट करने के लिए एडमिन इंटरफेस।</li>"
+            "<li><b>ऑडिट लॉगिंग इंजन (Audit Logs):</b> हर यूजर द्वारा की गई गतिविधियों की स्वचालित रिकॉर्डिंग।</li>"
+            "</ul>"
+
+            "<h3>मुख्य सुविधाएं (Core Features):</h3>"
+            "<ul>"
+            "<li><b>डैशबोर्ड (Dashboard):</b> कुल बिक्री, खरीद, उधारी (Receivables) और कैश फ्लो का वास्तविक समय में ग्राफ और आंकड़े।</li>"
+            "<li><b>इनवॉइसिंग एवं बिलिंग:</b> GST-अनुपालन इनवॉइस, टैक्स गणना, ऑटो स्टॉक कटौती और PDF जेनरेशन।</li>"
+            "<li><b>खरीद एवं परचेस बिल:</b> सप्लायर बिल मैनेजमेंट और <b>FIFO आधारित स्टॉक मूल्यांकन</b>।</li>"
+            "<li><b>इन्वेन्ट्री ट्रैकिंग:</b> स्टॉक का वास्तविक समय में प्रबंधन और लो-स्टॉक अलर्ट।</li>"
+            "<li><b>पेमेंट्स एवं क्रेडिट्स:</b> आंशिक भुगतान दर्ज करें और उधारी/क्रेडिट का ट्रैक रखें।</li>"
+            "<li><b>रिपोर्ट्स एवं एनालिटिक्स:</b> सेल्स/परचेस रजिस्टर, GST सारांश, स्टॉक मूल्यांकन और उधारी अवधि (Aging) रिपोर्ट।</li>"
+            "</ul>"
+
+            "<p style='color: #64748B; font-size: 12px; margin-top: 20px;'>"
+            "<i>© 2026 TSL SwiftBill ERP. सर्वाधिकार सुरक्षित। संचालित: Br31Technologies.</i>"
+            "</p>"
+        )
+        content_hi_scroll.setWidget(content_hi_text)
+        about_hi_layout.addWidget(content_hi_scroll)
+        tabs.addTab(about_hi_tab, "🇮🇳 ऐप जानकारी (हिंदी)")
+        
+        # --- Tab 3: FAQ & Help ---
         faq_tab = QWidget()
         faq_layout = QVBoxLayout(faq_tab)
         faq_layout.setContentsMargins(0, 10, 0, 0)
@@ -118,34 +164,31 @@ class AboutWidget(QWidget):
         faq_text.setStyleSheet("background-color: transparent; font-size: 14px; line-height: 1.6;")
         
         faq_content = """
-        <h3>Frequently Asked Questions & User Guide (v3.5.0)</h3>
+        <h3>Frequently Asked Questions & User Guide / सामान्य प्रश्न (v3.5.0)</h3>
         
-        <p><b>Q: What is new in Version 3.5.0?</b><br>
-        A: Version 3.5.0 introduces <b>Multi-Role Access Control (Owner, Manager, Staff)</b>, a <b>User Management Screen</b>, <b>Admin Database Setup Protection</b>, <b>80mm & 58mm POS Thermal Receipt Printing</b>, <b>Audit Activity Logging</b>, and <b>MySQL Database Exports</b>.</p>
-        
+        <p><b>Q: How do Due Date presets (10 days, 15 days, 45 days) work?</b><br>
+        A: When creating an Invoice or Bill, select a Payment Term preset (e.g. <b>Net 10 Days</b>, <b>Net 15 Days</b>, <b>Net 45 Days</b>). The system automatically calculates and fills the exact Due Date (Date + N days). You can also select <b>Custom Date</b> for manual dates.</p>
+
+        <p><b>Q: How do Custom Fields work? / कस्टम फ़ील्ड्स कैसे काम करते हैं?</b><br>
+        A: Go to <b>Settings > Custom Fields</b>, select module (Invoices, Bills, Payments), click <b>Add Field</b> and save. When creating a new Invoice or Bill, your custom field dynamically appears on the form and prints on PDFs.</p>
+
+        <p><b>Q: How do I select or change default printers? / प्रिंटर कैसे चुनें?</b><br>
+        A: When clicking <b>Print A4 PDF</b> or <b>POS Receipt</b>, a printer selection dialog appears with all available installed printers. You can also configure default printers in <b>Settings > Printer Setup</b>.</p>
+
         <p><b>Q: How do user roles work?</b><br>
         A: <br>
-        - <b>Owner</b>: Full system access, User Management screen, Financial Reports, and Database maintenance.<br>
-        - <b>Manager</b>: Access to operational modules (Invoices, Purchases, Payments, Stock, Reports), but restricted from User Management and Database Reset.<br>
-        - <b>Staff</b>: Operational access (Invoices, Purchases, Payments, Stock, Customers, Vendors, Items), but restricted from Reports, Settings, and User Management.</p>
-
-        <p><b>Q: How do I print thermal POS receipts (80mm / 58mm)?</b><br>
-        A: In the <b>Invoices</b> page, select any invoice and click <b>Print POS Receipt (80mm)</b> or <b>Print POS Receipt (58mm)</b>. This generates a compact receipt layout suitable for POS receipt printers.</p>
-
-        <p><b>Q: How is Database Configuration protected on the login screen?</b><br>
-        A: Clicking <b>⚙ Database Setup</b> prompts for Administrator (Owner) credentials to prevent unauthorized changes to database connection settings.</p>
+        - <b>Owner</b>: Full system access, User Management, Financial Reports, Settings, and Database Maintenance.<br>
+        - <b>Manager</b>: Operational access (Invoices, Purchases, Payments, Stock, Reports), restricted from User Management.<br>
+        - <b>Staff</b>: Daily entries (Invoices, Purchases, Payments, Stock, Customers, Vendors), restricted from Reports and Settings.</p>
 
         <p><b>Q: How do I create a new invoice?</b><br>
-        A: Go to the <b>Invoices</b> tab and click <b>+ Create Invoice</b>. Select a customer, add items, and save. Stock is deducted automatically.</p>
-
-        <p><b>Q: What happens when I delete an Invoice or Bill?</b><br>
-        A: Deleting an Invoice restores stock. Deleting a Bill reduces stock. <i>Note: You must delete attached payment records before deleting an invoice or bill.</i></p>
+        A: Go to the <b>Invoices</b> tab and click <b>+ Create Invoice</b>. Select a customer, add items, set payment terms, and save. Stock is deducted automatically.</p>
 
         <p><b>Q: How is stock calculated?</b><br>
         A: Stock is tracked using the <b>FIFO (First-In-First-Out)</b> method to calculate COGS based on oldest available stock batches.</p>
 
         <p><b>Q: How do I backup or restore my data?</b><br>
-        A: Go to <b>Settings > Database</b>. Use <b>Backup Database (Export)</b> to save a backup file (supports both SQLite and MySQL backends).</p>
+        A: Go to <b>Settings > Database</b>. Click <b>Backup Database (Export)</b> to save a local backup file (SQLite or MySQL).</p>
         """
         
         faq_text.setHtml(faq_content)
@@ -229,12 +272,12 @@ class AboutWidget(QWidget):
         
         email_btn = QPushButton("Email Us")
         email_btn.setStyleSheet(btn_style)
-        email_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("mailto:support@br31tech.live")))
+        email_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("mailto:support@br31tech.in")))
         right_layout.addWidget(email_btn)
         
         web_btn = QPushButton("Visit Website")
         web_btn.setStyleSheet(btn_style)
-        web_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://www.br31tech.live/products")))
+        web_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://www.br31tech.in/products")))
         right_layout.addWidget(web_btn)
         
         github_btn = QPushButton("GitHub")
