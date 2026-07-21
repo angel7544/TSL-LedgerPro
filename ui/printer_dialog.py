@@ -21,7 +21,8 @@ class PrinterSelectionDialog(QDialog):
         self.doc_type = doc_type
         
         self.setWindowTitle(f"Print - {doc_title}")
-        self.setFixedWidth(520)
+        self.setMinimumWidth(520)
+        self.setMinimumHeight(360)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, False)
         
         self.init_ui()
@@ -70,12 +71,13 @@ class PrinterSelectionDialog(QDialog):
         group_layout = QVBoxLayout()
         group_layout.setSpacing(12)
         
-        # Printer Dropdown Label + Combo
+        # Printer Dropdown Label + Combo & Refresh Button
         printer_lbl = QLabel("Select Printer Service:")
         printer_lbl.setStyleSheet("font-weight: normal; color: #334155;")
         
+        printer_row = QHBoxLayout()
+        
         self.printer_combo = QComboBox()
-        self.printer_combo.setView(QListView())
         self.printer_combo.setMaxVisibleItems(8)
         self.printer_combo.setStyleSheet("""
             QComboBox {
@@ -107,27 +109,32 @@ class PrinterSelectionDialog(QDialog):
             }
         """)
         
-        printers = get_available_printers()
-        default_sys_printer = get_default_printer_name()
-        
-        self.printer_combo.addItem("(System Default)", "(System Default)")
-        for p in printers:
-            label = f"{p} (Default)" if p == default_sys_printer else p
-            self.printer_combo.addItem(label, p)
+        refresh_btn = QPushButton(" Refresh")
+        refresh_btn.setIcon(get_icon("refresh", "#334155", 14))
+        refresh_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #F8FAFC;
+                color: #334155;
+                border: 1px solid #CBD5E1;
+                border-radius: 6px;
+                padding: 7px 12px;
+                font-weight: bold;
+                font-size: 12px;
+            }
+            QPushButton:hover {
+                background-color: #E2E8F0;
+            }
+        """)
+        refresh_btn.setToolTip("Re-scan system for newly added or connected printers")
+        refresh_btn.clicked.connect(self.reload_printers)
 
-        # Preselect configured printer preference if available
-        saved_settings = get_printer_settings()
-        if self.doc_type in ["thermal_80", "thermal_58"]:
-            pref = saved_settings.get('default_thermal_printer', '(System Default)')
-        else:
-            pref = saved_settings.get('default_doc_printer', '(System Default)')
+        printer_row.addWidget(self.printer_combo, stretch=1)
+        printer_row.addWidget(refresh_btn)
 
-        idx = self.printer_combo.findData(pref)
-        if idx >= 0:
-            self.printer_combo.setCurrentIndex(idx)
+        self.reload_printers()
             
         group_layout.addWidget(printer_lbl)
-        group_layout.addWidget(self.printer_combo)
+        group_layout.addLayout(printer_row)
         
         # Copies Row
         copies_layout = QHBoxLayout()
@@ -215,6 +222,32 @@ class PrinterSelectionDialog(QDialog):
         
         layout.addLayout(btn_layout)
         self.setLayout(layout)
+
+    def reload_printers(self):
+        current_sel = self.printer_combo.currentData() if hasattr(self, 'printer_combo') and self.printer_combo.count() > 0 else None
+        self.printer_combo.clear()
+        
+        printers = get_available_printers()
+        default_sys_printer = get_default_printer_name()
+        
+        self.printer_combo.addItem("(System Default)", "(System Default)")
+        for p in printers:
+            label = f"{p} (Default)" if p == default_sys_printer else p
+            self.printer_combo.addItem(label, p)
+
+        target_pref = current_sel
+        if not target_pref:
+            saved_settings = get_printer_settings()
+            if self.doc_type in ["thermal_80", "thermal_58"]:
+                target_pref = saved_settings.get('default_thermal_printer', '(System Default)')
+            else:
+                target_pref = saved_settings.get('default_doc_printer', '(System Default)')
+
+        idx = self.printer_combo.findData(target_pref)
+        if idx >= 0:
+            self.printer_combo.setCurrentIndex(idx)
+        else:
+            self.printer_combo.setCurrentIndex(0)
 
     def get_selected_printer(self):
         return self.printer_combo.currentData()

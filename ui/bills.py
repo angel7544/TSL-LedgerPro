@@ -775,6 +775,11 @@ class CreateBillDialog(QDialog):
         self.custom_fields_widgets = {}
         self.load_custom_fields_ui(layout)
 
+        if self.bill_data:
+            self.populate_data()
+        else:
+            self.add_item_row()
+
     def on_due_preset_changed(self):
         days = self.due_preset_combo.currentData()
         if days is not None and days >= 0:

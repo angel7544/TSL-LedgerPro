@@ -17,8 +17,16 @@ def get_unicode_font():
     if UNICODE_FONT_NAME:
         return UNICODE_FONT_NAME
     font_candidates = [
-        ("ArialUnicode", r"C:\Windows\Fonts\arial.ttf"),
+        # Arial Unicode MS — full Unicode coverage including ₹ (U+20B9)
+        ("ArialUnicode", r"C:\Windows\Fonts\ARIALUNI.ttf"),
+        # Segoe UI — ships with Windows 7+ and includes ₹
+        ("SegoeUI", r"C:\Windows\Fonts\segoeui.ttf"),
+        # Noto Sans — open-source, excellent Unicode
+        ("NotoSans", r"C:\Windows\Fonts\NotoSans-Regular.ttf"),
+        # DejaVu Sans — common on Linux/bundled envs
         ("DejaVuSans", r"C:\Windows\Fonts\DejaVuSans.ttf"),
+        # Plain Arial — fallback (DOES NOT render ₹ correctly)
+        ("Arial", r"C:\Windows\Fonts\arial.ttf"),
     ]
     for name, path in font_candidates:
         try:

@@ -12,15 +12,44 @@ from database.db import execute_read_query, execute_write_query
 
 def get_available_printers():
     """Returns a list of all available system printer names."""
+    printers = []
+    
+    # 1. Direct Windows Spooler query via win32print (catches newly added USB/Network printers immediately)
+    if sys.platform.startswith('win'):
+        try:
+            import win32print
+            flags = win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS
+            enum_printers = win32print.EnumPrinters(flags)
+            for p in enum_printers:
+                # p tuple structure: (flags, description, printer_name, comment)
+                p_name = p[2]
+                if p_name and p_name not in printers:
+                    printers.append(p_name)
+        except Exception as e:
+            print(f"Error fetching win32 printers: {e}")
+
+    # 2. Qt PrinterInfo query for cross-platform / additional fallback
     try:
-        printers = QPrinterInfo.availablePrinterNames()
-        return printers if printers else []
+        qt_printers = QPrinterInfo.availablePrinterNames()
+        for p in qt_printers:
+            if p and p not in printers:
+                printers.append(p)
     except Exception as e:
-        print(f"Error fetching printer names: {e}")
-        return []
+        print(f"Error fetching QPrinterInfo names: {e}")
+
+    return printers
 
 def get_default_printer_name():
     """Returns the system default printer name."""
+    if sys.platform.startswith('win'):
+        try:
+            import win32print
+            def_p = win32print.GetDefaultPrinter()
+            if def_p:
+                return def_p
+        except Exception as e:
+            print(f"Error fetching win32 default printer: {e}")
+
     try:
         def_printer = QPrinterInfo.defaultPrinterName()
         return def_printer if def_printer else ""
@@ -103,7 +132,11 @@ def print_pdf_file(pdf_path, printer_name=None, copies=1, parent=None):
 
             img = doc.render(i, QSize(render_w, render_h))
             if not img.isNull():
-                painter.drawImage(printer_page_rect, img)
+                target_w = printer_page_rect.width()
+                aspect = (img.height() / img.width()) if img.width() > 0 else 1.0
+                target_h = target_w * aspect
+                target_rect = QRectF(printer_page_rect.x(), printer_page_rect.y(), target_w, target_h)
+                painter.drawImage(target_rect, img)
 
         painter.end()
         return True, f"Successfully sent to printer '{printer.printerName()}'."
@@ -155,7 +188,11 @@ def open_system_print_dialog(pdf_path, printer_name=None, parent=None):
                 render_h = int(psize.height() * 4)
                 img = doc.render(i, QSize(render_w, render_h))
                 if not img.isNull():
-                    painter.drawImage(printer_page_rect, img)
+                    target_w = printer_page_rect.width()
+                    aspect = (img.height() / img.width()) if img.width() > 0 else 1.0
+                    target_h = target_w * aspect
+                    target_rect = QRectF(printer_page_rect.x(), printer_page_rect.y(), target_w, target_h)
+                    painter.drawImage(target_rect, img)
 
             painter.end()
             QMessageBox.information(parent, "Print Success", f"Printed to {printer.printerName()}")

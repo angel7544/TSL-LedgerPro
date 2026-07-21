@@ -7,7 +7,8 @@ a = Analysis(
     datas=[
         ('assets', 'assets'),
         ('database/schema.sql', 'database'),
-        ('database/schema_mysql.sql', 'database')
+        ('database/schema_mysql.sql', 'database'),
+        ('config.json', '.')
     ],
     hiddenimports=[
         'PySide6.QtPrintSupport',
@@ -25,7 +26,25 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=[
+        'torch',
+        'scipy',
+        'kivy',
+        'kivymd',
+        'tkinter',
+        'IPython',
+        'notebook',
+        'tornado',
+        'pytest',
+        'unittest',
+        'sphinx',
+        'jedi',
+        'sympy',
+        'pyarrow',
+        'numba',
+        'llvmlite',
+        'fsspec'
+    ],
     noarchive=False,
     optimize=0,
 )

@@ -524,6 +524,11 @@ class CreateInvoiceDialog(QDialog):
             "SELECT id, name, sku, selling_price, sp1, sp2, sp3, gst_rate, is_sellable FROM items"
         )
 
+        if self.invoice_data:
+            self.populate_data()
+        else:
+            self.add_item_row()
+
     def on_due_preset_changed(self):
         days = self.due_preset_combo.currentData()
         if days is not None and days >= 0:
@@ -601,6 +606,7 @@ class CreateInvoiceDialog(QDialog):
         # Items
         for item in data.get('items', []):
             self.add_item_row(item)
+        self.calculate_total()
             
     def load_custom_fields_ui(self, parent_layout):
         """Loads custom fields from settings and adds them to the UI."""

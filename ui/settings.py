@@ -495,19 +495,8 @@ class SettingsPage(QWidget):
         self.load_custom_fields()
 
         # Printer Settings
-        printer_st = get_printer_settings()
-        doc_p = printer_st.get('default_doc_printer', '(System Default)')
-        therm_p = printer_st.get('default_thermal_printer', '(System Default)')
-        act = printer_st.get('print_action_default', 'dialog')
-        
-        idx_doc = self.default_doc_printer.findData(doc_p)
-        if idx_doc >= 0: self.default_doc_printer.setCurrentIndex(idx_doc)
-        
-        idx_therm = self.default_thermal_printer.findData(therm_p)
-        if idx_therm >= 0: self.default_thermal_printer.setCurrentIndex(idx_therm)
-        
-        idx_act = self.print_action_combo.findData(act)
-        if idx_act >= 0: self.print_action_combo.setCurrentIndex(idx_act)
+        if hasattr(self, 'default_doc_printer') and hasattr(self, 'default_thermal_printer'):
+            self.reload_settings_printers()
 
     def upload_logo(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Select Logo", "", "Images (*.png *.jpg *.jpeg)")
@@ -744,32 +733,29 @@ class SettingsPage(QWidget):
 
         # Document Printer (A4)
         self.default_doc_printer = QComboBox()
-        self.default_doc_printer.setView(QListView())
         self.default_doc_printer.setMaxVisibleItems(8)
         self.default_doc_printer.setStyleSheet(combo_qss)
-        self.default_doc_printer.addItem("(System Default)", "(System Default)")
-        for p in printers:
-            label = f"{p} (Default)" if p == default_sys_printer else p
-            self.default_doc_printer.addItem(label, p)
             
         # Thermal POS Printer (58mm/80mm)
         self.default_thermal_printer = QComboBox()
-        self.default_thermal_printer.setView(QListView())
         self.default_thermal_printer.setMaxVisibleItems(8)
         self.default_thermal_printer.setStyleSheet(combo_qss)
-        self.default_thermal_printer.addItem("(System Default)", "(System Default)")
-        for p in printers:
-            label = f"{p} (Default)" if p == default_sys_printer else p
-            self.default_thermal_printer.addItem(label, p)
+
+        # Populate combo options dynamically
+        self.reload_settings_printers()
 
         # Print Action Default
         self.print_action_combo = QComboBox()
-        self.print_action_combo.setView(QListView())
         self.print_action_combo.setStyleSheet(combo_qss)
         self.print_action_combo.addItem("Always Ask (Printer Selection Dialog)", "dialog")
         self.print_action_combo.addItem("Direct Print to Default Printer", "direct")
         self.print_action_combo.addItem("Open System Print Dialog", "system_dialog")
         self.print_action_combo.addItem("View / Open PDF File", "preview")
+
+        saved_settings = get_printer_settings()
+        act_idx = self.print_action_combo.findData(saved_settings.get('print_action_default', 'dialog'))
+        if act_idx >= 0:
+            self.print_action_combo.setCurrentIndex(act_idx)
 
         form_layout.addRow("Default Document Printer (A4):", self.default_doc_printer)
         form_layout.addRow("Default Thermal POS Printer:", self.default_thermal_printer)
@@ -779,13 +765,24 @@ class SettingsPage(QWidget):
         layout.addWidget(group)
         
         # Buttons Row
+        btn_row = QHBoxLayout()
         save_btn = QPushButton(" Save Printer Settings")
         save_btn.setIcon(get_icon("save", "#FFFFFF", 16))
         save_btn.setFixedWidth(200)
         save_btn.setStyleSheet("background-color: #2563EB; color: white; padding: 10px 18px; border-radius: 6px; font-weight: bold;")
         save_btn.clicked.connect(self.save_printer_setup)
         
-        layout.addWidget(save_btn)
+        refresh_printers_btn = QPushButton(" Refresh Printers List")
+        refresh_printers_btn.setIcon(get_icon("refresh", "#1E293B", 16))
+        refresh_printers_btn.setStyleSheet("background-color: #F8FAFC; color: #1E293B; border: 1px solid #CBD5E1; padding: 10px 14px; border-radius: 6px; font-weight: bold;")
+        refresh_printers_btn.setToolTip("Re-scan system for newly added or connected printers")
+        refresh_printers_btn.clicked.connect(self.reload_settings_printers)
+
+        btn_row.addWidget(save_btn)
+        btn_row.addWidget(refresh_printers_btn)
+        btn_row.addStretch()
+
+        layout.addLayout(btn_row)
         
         # Test Print Group
         test_group = QGroupBox("Test Printer Connection")
@@ -793,7 +790,7 @@ class SettingsPage(QWidget):
         test_layout = QHBoxLayout()
         
         self.test_type_combo = QComboBox()
-        self.test_type_combo.setView(QListView())
+        self.test_type_combo.setStyleSheet(combo_qss)
         self.test_type_combo.setStyleSheet(combo_qss)
         self.test_type_combo.addItem("A4 Invoice Test Page", "invoice")
         self.test_type_combo.addItem("80mm POS Receipt Test Page", "thermal_80")
@@ -815,6 +812,42 @@ class SettingsPage(QWidget):
         layout.addStretch()
         scroll.setWidget(content)
         tab_layout.addWidget(scroll)
+
+    def reload_settings_printers(self):
+        curr_doc = self.default_doc_printer.currentData() if hasattr(self, 'default_doc_printer') and self.default_doc_printer.count() > 0 else None
+        curr_thermal = self.default_thermal_printer.currentData() if hasattr(self, 'default_thermal_printer') and self.default_thermal_printer.count() > 0 else None
+
+        printers = get_available_printers()
+        default_sys_printer = get_default_printer_name()
+        saved_settings = get_printer_settings()
+
+        if not curr_doc:
+            curr_doc = saved_settings.get('default_doc_printer', '(System Default)')
+        if not curr_thermal:
+            curr_thermal = saved_settings.get('default_thermal_printer', '(System Default)')
+
+        self.default_doc_printer.clear()
+        self.default_thermal_printer.clear()
+
+        self.default_doc_printer.addItem("(System Default)", "(System Default)")
+        self.default_thermal_printer.addItem("(System Default)", "(System Default)")
+
+        for p in printers:
+            label = f"{p} (Default)" if p == default_sys_printer else p
+            self.default_doc_printer.addItem(label, p)
+            self.default_thermal_printer.addItem(label, p)
+
+        doc_idx = self.default_doc_printer.findData(curr_doc)
+        if doc_idx >= 0:
+            self.default_doc_printer.setCurrentIndex(doc_idx)
+        else:
+            self.default_doc_printer.setCurrentIndex(0)
+
+        therm_idx = self.default_thermal_printer.findData(curr_thermal)
+        if therm_idx >= 0:
+            self.default_thermal_printer.setCurrentIndex(therm_idx)
+        else:
+            self.default_thermal_printer.setCurrentIndex(0)
 
     def save_printer_setup(self):
         doc_p = self.default_doc_printer.currentData()

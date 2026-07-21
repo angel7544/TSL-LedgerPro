@@ -2035,145 +2035,216 @@ function InvoicesView({ invoices, customers, items, getHeaders, reload, settings
 
           {/* Render layout-specific wrapper */}
           <div className={`print-area ${printLayout === 'a4' ? 'preview-a4' : printLayout === 'a5' ? 'preview-a5' : 'preview-thermal'}`}>
-            
-            {/* Header info */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #ddd', paddingBottom: '16px', marginBottom: '16px' }}>
-              <div>
-                {(selectedInvoice.invoice.outlet_logo_url || settings.company_logo) ? (
-                  printLayout !== 'thermal' && (
-                    <img src={selectedInvoice.invoice.outlet_logo_url || settings.company_logo} alt="Logo" style={{ maxHeight: '40px', marginBottom: '8px', objectFit: 'contain' }} onError={e => e.target.style.display = 'none'} />
-                  )
-                ) : (
-                  printLayout !== 'thermal' && (
-                    <div style={{
-                      padding: '6px 12px',
-                      background: 'rgba(99, 102, 241, 0.1)',
-                      color: 'var(--accent-primary)',
-                      fontWeight: '800',
-                      fontSize: '1.1rem',
-                      borderRadius: '4px',
-                      display: 'inline-block',
-                      marginBottom: '10px',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                      borderLeft: '4px solid var(--accent-primary)',
-                      fontFamily: 'var(--font-family-display)'
-                    }}>
-                      {settings.company_name || 'LEDGERPRO'}
-                    </div>
-                  )
-                )}
-                <h2 style={{ fontSize: printLayout === 'thermal' ? '1.1rem' : '1.5rem', margin: 0 }}>
-                  {printLayout === 'thermal' ? 'RECEIPT' : 'TAX INVOICE'}
-                </h2>
-                <p style={{ margin: '2px 0 0', fontSize: '0.85rem' }}>Inv #: <strong>{selectedInvoice.invoice.invoice_number}</strong></p>
-                <p style={{ margin: '2px 0 0', fontSize: '0.85rem' }}>Date: {new Date(selectedInvoice.invoice.date).toLocaleDateString()}</p>
-                {selectedInvoice.invoice.due_date && <p style={{ margin: '2px 0 0', fontSize: '0.85rem' }}>Due Date: {new Date(selectedInvoice.invoice.due_date).toLocaleDateString()}</p>}
-                <p style={{ margin: '2px 0 0', fontSize: '0.85rem' }}>Outlet: {selectedInvoice.invoice.outlet_name || 'Main Outlet'}</p>
-              </div>
-              
-              <div style={{ textAlign: 'right' }}>
-                <h3 style={{ margin: 0, fontSize: printLayout === 'thermal' ? '1rem' : '1.2rem' }}>{settings.company_name || 'My Company'}</h3>
-                <p style={{ fontSize: '0.8rem', margin: '4px 0 0', whiteSpace: 'pre-line' }}>{selectedInvoice.invoice.outlet_address || settings.company_address || ''}</p>
-                <p style={{ fontSize: '0.8rem', margin: '2px 0 0' }}>GSTIN: {selectedInvoice.invoice.outlet_gstin || settings.company_gstin || ''}</p>
-                {(selectedInvoice.invoice.outlet_phone || selectedInvoice.invoice.outlet_email) && (
-                  <p style={{ fontSize: '0.78rem', margin: '2px 0 0' }}>
-                    {[selectedInvoice.invoice.outlet_phone, selectedInvoice.invoice.outlet_email].filter(Boolean).join(' | ')}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Billed To */}
-            <div style={{ marginBottom: '16px', fontSize: '0.85rem' }}>
-              <p style={{ fontWeight: 'bold', margin: '0 0 4px' }}>Billed To:</p>
-              <p style={{ margin: 0 }}><strong>{selectedInvoice.invoice.customer_name}</strong></p>
-              <p style={{ margin: 0 }}>{selectedInvoice.invoice.customer_address || ''}</p>
-              <p style={{ margin: 0 }}>State: {selectedInvoice.invoice.customer_state || ''}</p>
-              <p style={{ margin: 0 }}>GSTIN: {selectedInvoice.invoice.customer_gstin || ''}</p>
-            </div>
-
-            {/* Items Table */}
-            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '16px', fontSize: '0.85rem' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid #000' }}>
-                  <th style={{ textAlign: 'left', padding: '6px 4px' }}>Item Details</th>
-                  <th style={{ textAlign: 'center', padding: '6px 4px' }}>Qty</th>
-                  <th style={{ textAlign: 'right', padding: '6px 4px' }}>Rate</th>
-                  {printLayout !== 'thermal' && <th style={{ textAlign: 'right', padding: '6px 4px' }}>Disc %</th>}
-                  {printLayout !== 'thermal' && <th style={{ textAlign: 'right', padding: '6px 4px' }}>GST %</th>}
-                  <th style={{ textAlign: 'right', padding: '6px 4px' }}>Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {selectedInvoice.items.map(ii => (
-                  <tr key={ii.id} style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '6px 4px' }}>
-                      <strong>{ii.item_name}</strong>
-                      {printLayout !== 'thermal' && <span style={{ fontSize: '0.75rem', display: 'block', opacity: 0.8 }}>SKU: {ii.item_sku} | HSN: {ii.item_hsn}</span>}
-                    </td>
-                    <td style={{ textAlign: 'center', padding: '6px 4px' }}>{ii.quantity}</td>
-                    <td style={{ textAlign: 'right', padding: '6px 4px' }}>₹{ii.rate.toFixed(2)}</td>
-                    {printLayout !== 'thermal' && <td style={{ textAlign: 'right', padding: '6px 4px' }}>{ii.discount_percent}%</td>}
-                    {printLayout !== 'thermal' && <td style={{ textAlign: 'right', padding: '6px 4px' }}>{ii.gst_percent}%</td>}
-                    <td style={{ textAlign: 'right', padding: '6px 4px' }}>₹{ii.amount.toFixed(2)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {/* Bottom calculation and UPI QR code */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #eee', paddingTop: '16px', flexWrap: 'wrap', gap: '16px' }}>
-              {/* Left side: UPI payment QR Code */}
-              <div>
-                {(selectedInvoice.invoice.outlet_upi_id || settings.company_upi_id) ? (() => {
-                  const upiId = selectedInvoice.invoice.outlet_upi_id || settings.company_upi_id;
-                  const upiUri = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(settings.company_name || 'LedgerPro')}&am=${selectedInvoice.invoice.grand_total.toFixed(2)}&cu=INR&tn=Invoice-${selectedInvoice.invoice.invoice_number}`;
-                  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(upiUri)}`;
-                  return (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid #ddd', padding: '8px', borderRadius: '6px', maxWidth: '280px', background: printLayout === 'thermal' ? 'transparent' : 'var(--bg-secondary)' }}>
-                      <img src={qrUrl} alt="UPI QR Code" style={{ width: '80px', height: '80px' }} />
-                      <div style={{ fontSize: '0.75rem' }}>
-                        <p style={{ fontWeight: 'bold', margin: '0 0 2px' }}>Scan & Pay via UPI</p>
-                        <p style={{ margin: '0 0 2px', wordBreak: 'break-all', opacity: 0.8 }}>{upiId}</p>
-                        <p style={{ margin: 0, fontWeight: 'bold' }}>Amount: ₹{selectedInvoice.invoice.grand_total.toFixed(2)}</p>
-                      </div>
-                    </div>
-                  );
-                })() : (
-                  <div style={{ fontSize: '0.75rem', color: '#999' }}>No UPI ID configured.</div>
-                )}
-              </div>
-
-              {/* Right side: Calculations */}
-              <div style={{ width: '220px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.85rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Subtotal:</span>
-                  <span>₹{selectedInvoice.invoice.subtotal.toFixed(2)}</span>
+            {printLayout === 'thermal' ? (
+              <div style={{ fontFamily: 'Courier New, monospace', fontSize: '0.8rem', color: '#000', width: '100%', maxWidth: '320px', margin: '0 auto', background: '#fff', padding: '12px 8px' }}>
+                <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '1.05rem', marginBottom: '8px' }}>
+                  {settings.company_name || 'My Shop'}
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>GST Tax:</span>
-                  <span>₹{selectedInvoice.invoice.tax_amount.toFixed(2)}</span>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
+                  <span>GST: {selectedInvoice.invoice.outlet_gstin || settings.company_gstin || ''}</span>
+                  <span>Mob: {selectedInvoice.invoice.outlet_phone || settings.company_phone || ''}</span>
                 </div>
-                {selectedInvoice.invoice.round_off !== 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Round-off:</span>
-                    <span>₹{selectedInvoice.invoice.round_off.toFixed(2)}</span>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: '4px' }}>
+                  <span>Bill No: <strong>{selectedInvoice.invoice.invoice_number}</strong></span>
+                  <span>Date: {new Date(selectedInvoice.invoice.date).toLocaleDateString()}</span>
+                </div>
+
+                {(selectedInvoice.invoice.outlet_address || settings.company_address) && (
+                  <div style={{ fontSize: '0.75rem', marginBottom: '8px' }}>
+                    Address: {(selectedInvoice.invoice.outlet_address || settings.company_address || '').replace(/\n/g, ', ')}
                   </div>
                 )}
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', borderTop: '1px solid #000', paddingTop: '6px', fontSize: '0.95rem' }}>
-                  <span>Grand Total:</span>
-                  <span>₹{selectedInvoice.invoice.grand_total.toFixed(2)}</span>
+
+                <div style={{ margin: '4px 0 2px' }}>item ------------------------------------</div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1.5fr 1.5fr', fontWeight: 'bold', fontSize: '0.78rem' }}>
+                  <div>sl.no</div>
+                  <div style={{ textAlign: 'center' }}>Qty</div>
+                  <div style={{ textAlign: 'right' }}>rate</div>
+                  <div style={{ textAlign: 'right' }}>amount</div>
+                </div>
+
+                <div style={{ margin: '2px 0 6px', overflow: 'hidden', whiteSpace: 'nowrap' }}>_____________________________________</div>
+
+                {selectedInvoice.items.map((ii, idx) => (
+                  <div key={ii.id || idx} style={{ marginBottom: '6px' }}>
+                    <div style={{ fontWeight: 'bold', fontSize: '0.78rem', wordBreak: 'break-word' }}>
+                      {idx + 1}. {ii.item_name}
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1.5fr 1.5fr', fontSize: '0.78rem' }}>
+                      <div></div>
+                      <div style={{ textAlign: 'center' }}>{ii.quantity}</div>
+                      <div style={{ textAlign: 'right' }}>₹{ii.rate.toFixed(2)}</div>
+                      <div style={{ textAlign: 'right' }}>₹{ii.amount.toFixed(2)}</div>
+                    </div>
+                    <div style={{ borderBottom: '1px dashed #444', margin: '4px 0' }}></div>
+                  </div>
+                ))}
+
+                {(() => {
+                  const totalQty = selectedInvoice.items.reduce((acc, curr) => acc + (curr.quantity || 1), 0);
+                  const totalRate = selectedInvoice.items.reduce((acc, curr) => acc + (curr.rate || 0), 0);
+                  return (
+                    <>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1.5fr 1.5fr', fontWeight: 'bold', borderTop: '1px solid #000', borderBottom: '1px solid #000', padding: '4px 0', fontSize: '0.78rem' }}>
+                        <div>total</div>
+                        <div style={{ textAlign: 'center' }}>{totalQty}</div>
+                        <div style={{ textAlign: 'right' }}>₹{totalRate.toFixed(2)}</div>
+                        <div style={{ textAlign: 'right' }}>₹{selectedInvoice.invoice.subtotal.toFixed(2)}</div>
+                      </div>
+
+                      <div style={{ textAlign: 'right', marginTop: '8px', fontWeight: 'bold', fontSize: '0.78rem' }}>
+                        gst applicable = ₹{selectedInvoice.invoice.tax_amount.toFixed(2)}
+                      </div>
+                      <div style={{ textAlign: 'right', marginTop: '2px', fontWeight: 'bold', fontSize: '0.85rem' }}>
+                        payable = ₹{selectedInvoice.invoice.grand_total.toFixed(2)}
+                      </div>
+                    </>
+                  );
+                })()}
+
+                <div style={{ textAlign: 'center', marginTop: '16px', borderTop: '1px dashed #444', paddingTop: '8px', fontSize: '0.75rem' }}>
+                  <p style={{ margin: 0 }}>Thank you for shopping with us!</p>
+                  <p style={{ margin: '2px 0 0', opacity: 0.7 }}>Powered by TSL SwiftBill ERP POS</p>
                 </div>
               </div>
-            </div>
+            ) : (
+              <>
+                {/* Header info */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #ddd', paddingBottom: '16px', marginBottom: '16px' }}>
+                  <div>
+                    {(selectedInvoice.invoice.outlet_logo_url || settings.company_logo) ? (
+                      <img src={selectedInvoice.invoice.outlet_logo_url || settings.company_logo} alt="Logo" style={{ maxHeight: '40px', marginBottom: '8px', objectFit: 'contain' }} onError={e => e.target.style.display = 'none'} />
+                    ) : (
+                      <div style={{
+                        padding: '6px 12px',
+                        background: 'rgba(99, 102, 241, 0.1)',
+                        color: 'var(--accent-primary)',
+                        fontWeight: '800',
+                        fontSize: '1.1rem',
+                        borderRadius: '4px',
+                        display: 'inline-block',
+                        marginBottom: '10px',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        borderLeft: '4px solid var(--accent-primary)',
+                        fontFamily: 'var(--font-family-display)'
+                      }}>
+                        {settings.company_name || 'LEDGERPRO'}
+                      </div>
+                    )}
+                    <h2 style={{ fontSize: '1.5rem', margin: 0 }}>TAX INVOICE</h2>
+                    <p style={{ margin: '2px 0 0', fontSize: '0.85rem' }}>Inv #: <strong>{selectedInvoice.invoice.invoice_number}</strong></p>
+                    <p style={{ margin: '2px 0 0', fontSize: '0.85rem' }}>Date: {new Date(selectedInvoice.invoice.date).toLocaleDateString()}</p>
+                    {selectedInvoice.invoice.due_date && <p style={{ margin: '2px 0 0', fontSize: '0.85rem' }}>Due Date: {new Date(selectedInvoice.invoice.due_date).toLocaleDateString()}</p>}
+                    <p style={{ margin: '2px 0 0', fontSize: '0.85rem' }}>Outlet: {selectedInvoice.invoice.outlet_name || 'Main Outlet'}</p>
+                  </div>
+                  
+                  <div style={{ textAlign: 'right' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.2rem' }}>{settings.company_name || 'My Company'}</h3>
+                    <p style={{ fontSize: '0.8rem', margin: '4px 0 0', whiteSpace: 'pre-line' }}>{selectedInvoice.invoice.outlet_address || settings.company_address || ''}</p>
+                    <p style={{ fontSize: '0.8rem', margin: '2px 0 0' }}>GSTIN: {selectedInvoice.invoice.outlet_gstin || settings.company_gstin || ''}</p>
+                    {(selectedInvoice.invoice.outlet_phone || selectedInvoice.invoice.outlet_email) && (
+                      <p style={{ fontSize: '0.78rem', margin: '2px 0 0' }}>
+                        {[selectedInvoice.invoice.outlet_phone, selectedInvoice.invoice.outlet_email].filter(Boolean).join(' | ')}
+                      </p>
+                    )}
+                  </div>
+                </div>
 
-            {/* Receipt Footer */}
-            <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '0.78rem', borderTop: '1px dashed #ddd', paddingTop: '10px' }}>
-              <p style={{ margin: 0 }}>Thank you for shopping with us!</p>
-              <p style={{ margin: '2px 0 0', opacity: 0.7 }}>Powered by TSL SwiftBill ERP</p>
-            </div>
+                {/* Billed To */}
+                <div style={{ marginBottom: '16px', fontSize: '0.85rem' }}>
+                  <p style={{ fontWeight: 'bold', margin: '0 0 4px' }}>Billed To:</p>
+                  <p style={{ margin: 0 }}><strong>{selectedInvoice.invoice.customer_name}</strong></p>
+                  <p style={{ margin: 0 }}>{selectedInvoice.invoice.customer_address || ''}</p>
+                  <p style={{ margin: 0 }}>State: {selectedInvoice.invoice.customer_state || ''}</p>
+                  <p style={{ margin: 0 }}>GSTIN: {selectedInvoice.invoice.customer_gstin || ''}</p>
+                </div>
 
+                {/* Items Table */}
+                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '16px', fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid #000' }}>
+                      <th style={{ textAlign: 'left', padding: '6px 4px' }}>Item Details</th>
+                      <th style={{ textAlign: 'center', padding: '6px 4px' }}>Qty</th>
+                      <th style={{ textAlign: 'right', padding: '6px 4px' }}>Rate</th>
+                      <th style={{ textAlign: 'right', padding: '6px 4px' }}>Disc %</th>
+                      <th style={{ textAlign: 'right', padding: '6px 4px' }}>GST %</th>
+                      <th style={{ textAlign: 'right', padding: '6px 4px' }}>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedInvoice.items.map(ii => (
+                      <tr key={ii.id} style={{ borderBottom: '1px solid #eee' }}>
+                        <td style={{ padding: '6px 4px' }}>
+                          <strong>{ii.item_name}</strong>
+                          <span style={{ fontSize: '0.75rem', display: 'block', opacity: 0.8 }}>SKU: {ii.item_sku} | HSN: {ii.item_hsn}</span>
+                        </td>
+                        <td style={{ textAlign: 'center', padding: '6px 4px' }}>{ii.quantity}</td>
+                        <td style={{ textAlign: 'right', padding: '6px 4px' }}>₹{ii.rate.toFixed(2)}</td>
+                        <td style={{ textAlign: 'right', padding: '6px 4px' }}>{ii.discount_percent}%</td>
+                        <td style={{ textAlign: 'right', padding: '6px 4px' }}>{ii.gst_percent}%</td>
+                        <td style={{ textAlign: 'right', padding: '6px 4px' }}>₹{ii.amount.toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {/* Bottom calculation and UPI QR code */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #eee', paddingTop: '16px', flexWrap: 'wrap', gap: '16px' }}>
+                  {/* Left side: UPI payment QR Code */}
+                  <div>
+                    {(selectedInvoice.invoice.outlet_upi_id || settings.company_upi_id) ? (() => {
+                      const upiId = selectedInvoice.invoice.outlet_upi_id || settings.company_upi_id;
+                      const upiUri = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(settings.company_name || 'LedgerPro')}&am=${selectedInvoice.invoice.grand_total.toFixed(2)}&cu=INR&tn=Invoice-${selectedInvoice.invoice.invoice_number}`;
+                      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(upiUri)}`;
+                      return (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid #ddd', padding: '8px', borderRadius: '6px', maxWidth: '280px', background: 'var(--bg-secondary)' }}>
+                          <img src={qrUrl} alt="UPI QR Code" style={{ width: '80px', height: '80px' }} />
+                          <div style={{ fontSize: '0.75rem' }}>
+                            <p style={{ fontWeight: 'bold', margin: '0 0 2px' }}>Scan & Pay via UPI</p>
+                            <p style={{ margin: '0 0 2px', wordBreak: 'break-all', opacity: 0.8 }}>{upiId}</p>
+                            <p style={{ margin: 0, fontWeight: 'bold' }}>Amount: ₹{selectedInvoice.invoice.grand_total.toFixed(2)}</p>
+                          </div>
+                        </div>
+                      );
+                    })() : (
+                      <div style={{ fontSize: '0.75rem', color: '#999' }}>No UPI ID configured.</div>
+                    )}
+                  </div>
+
+                  {/* Right side: Calculations */}
+                  <div style={{ width: '220px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.85rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>Subtotal:</span>
+                      <span>₹{selectedInvoice.invoice.subtotal.toFixed(2)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>GST Tax:</span>
+                      <span>₹{selectedInvoice.invoice.tax_amount.toFixed(2)}</span>
+                    </div>
+                    {selectedInvoice.invoice.round_off !== 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>Round-off:</span>
+                        <span>₹{selectedInvoice.invoice.round_off.toFixed(2)}</span>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', borderTop: '1px solid #000', paddingTop: '6px', fontSize: '0.95rem' }}>
+                      <span>Grand Total:</span>
+                      <span>₹{selectedInvoice.invoice.grand_total.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Receipt Footer */}
+                <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '0.78rem', borderTop: '1px dashed #ddd', paddingTop: '10px' }}>
+                  <p style={{ margin: 0 }}>Thank you for shopping with us!</p>
+                  <p style={{ margin: '2px 0 0', opacity: 0.7 }}>Powered by TSL SwiftBill ERP</p>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="no-print" style={{ marginTop: '20px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
